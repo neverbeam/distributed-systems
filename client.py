@@ -12,23 +12,20 @@ server_address = ('localhost', 10000)
 print('connecting to {} port {}'.format(*server_address))
 sock.connect(server_address)
 
-try:
 
-    # Send data
-    message = b'This is the message.  It will be repeated.'
-    print('sending {!r}'.format(message))
-    sock.sendall(message)
+def sendmessage(message):
+        # Send data
+        print('sending {!r}'.format(message))
+        sock.sendall(message)
 
-    # Look for the response
-    amount_received = 0
-    amount_expected = len(message)
-
-    while amount_received < amount_expected:
-        data = sock.recv(16)
-        amount_received += len(data)
+        # receive  data
+        data = sock.recv(64)
         print('received {!r}'.format(data))
 
-finally:
-    print('closing socket')
-    sock.close()
+message = b'This is the message.  It will be repeated.'
 
+sendmessage(message)
+
+
+print('closing socket')
+sock.close()

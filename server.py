@@ -1,7 +1,7 @@
 # socket_echo_server.py
 
 import socket
-import sys
+import select
 
 # Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -10,29 +10,44 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = ('localhost', 10000)
 print('starting up on {} port {}'.format(*server_address))
 sock.bind(server_address)
+connections = [sock]
 
-# Listen for incoming connections
-sock.listen(1)
+# Listen for incoming connections, # incomming connections
+sock.listen(3)
+
+def update_grid(data):
+    print ("updated")
 
 while True:
-    # Wait for a connection
-    print('waiting for a connection')
-    connection, client_address = sock.accept()
     try:
-        print('connection from', client_address)
+        # Wait for a connection
+        print('waiting for a connection')
+        readable, writable, errored = select.select(connections, [], [])
 
-        # Receive the data in small chunks and retransmit it
-        while True:
-            data = connection.recv(16)
-            print('received {!r}'.format(data))
-            if data:
-                print('sending data back to the client')
-                connection.sendall(data)
+        for s in readable:
+            # If server side, then new connection
+            if s is sock:
+                connection, client_address = sock.accept()
+                connections.append(connection)
+                print ("Someone connected from {}".format(client_address))
+            # Else we have some data
             else:
-                print('no data from', client_address)
-                break
+                data = connection.recv(64)
+                print('received {!r}'.format(data))
+                if data:
+                    print('sending data back to the client')
+                    update = update_grid(data) # perhaps do this in another thread
+                    connection.sendall(data)  # Perhaps do a broadcast here.
+                else: #connection has closed
+                    print ("closing the connection")
+                    connections.remove(connection)
+    # Handling stopping servers and closing connections.
+    except KeyboardInterrupt:
+        print ("Terminating and closing existing connections")
+        for connection in connections:
+            connection.close()
 
-    finally:
-        # Clean up the connection
-        connection.close()
 
+
+connection.close()
+# Receive update  ->  update -> send back -> handle new connection

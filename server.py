@@ -34,23 +34,23 @@ class Server:
                 print('waiting for a connection')
                 readable, writable, errored = select.select(self.connections, [], [])
 
-                for s in readable:
+                for client in readable:
                     # If server side, then new connection
-                    if s is self.sock:
+                    if client is self.sock:
                         connection, client_address = self.sock.accept()
                         self.connections.append(connection)
                         print ("Someone connected from {}".format(client_address))
                     # Else we have some data
                     else:
-                        data = connection.recv(64)
+                        data = client.recv(64)
                         print('received {!r}'.format(data))
                         if data:
                             print('sending data back to the client')
                             update = self.update_grid(data) # perhaps do this in another thread
-                            connection.sendall(data)  # Perhaps do a broadcast here.
+                            client.sendall(data)  # Perhaps do a broadcast here.
                         else: #connection has closed
                             print ("closing the connection")
-                            self.connections.remove(connection)
+                            self.connections.remove(client)
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
                 self.power_down()

@@ -12,7 +12,7 @@ from client import Client
 import time
 
 # give the client and a queue to write to
-def client_process(c, q):
+def client_process(q):
     # Connect to the host
     c = Client() # perhaps argument port
     c.start_moving()
@@ -24,12 +24,8 @@ def client_process(c, q):
 if __name__ == '__main__':
     mp.set_start_method('spawn')
 
-    # create a client
-    c1 = Client()
-    c2 = Client()
-
     q = mp.Queue()
-    p1 = mp.Process(target=client_process, args=(c1, q))
+    p1 = mp.Process(target=client_process, args=(q,))
 
     # spawn a process
     p1.start()
@@ -38,7 +34,7 @@ if __name__ == '__main__':
 
     # spawn another process
     time.sleep(1)
-    p2 = mp.Process(target=client_process, args=(c2, q))
+    p2 = mp.Process(target=client_process, args=(q,))
     p2.start()
 
     # wait until the process terminates

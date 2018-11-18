@@ -1,52 +1,58 @@
-
-# socket_echo_client.py
-
 import socket
 import select
 from threading import Thread
 
-def connect():
-    # Create a TCP/IP socket
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    # Connect the socket to the port where the server is listening
-    server_address = ('localhost', 10000)
-    print('connecting to {} port {}'.format(*server_address))
-    sock.connect(server_address)
+class Client:
+    def __init__(self, port=10000):
+        self.sock = self.connect_server(port=port)
 
-    return sock
+    def connect_server(self, port=10000):
+        # Create a TCP/IP socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+        # Connect the socket to the port where the server is listening
+        server_address = ('localhost', port)
+        print('connecting to {} port {}'.format(*server_address))
+        sock.connect(server_address)
 
-def sendmessage(message, sock):
+        return sock
+
+    def disconnect_server(self):
+        # close the socket
+        self.sock.close()
+
+    def send_message(self, message):
         # Send data
         print('sending {!r}'.format(message))
-        sock.sendall(message)
+        self.sock.sendall(message)
 
+    def start_moving(self):
+        # Thread for doing moves + send moves
+        Thread(target=self.player_moves, args=()).start()
 
-def player_moves(sock):
-    message = b'This is the message.  It will be repeated.'
-    sendmessage(message, sock)
+    def player_moves(self):
+        message = b'This is the message.  It will be repeated.'
+        self.send_message(message)
 
-def server_input(sock):
-    while True:
-        readable, writable, errored = select.select([sock], [sock], [])
-        data = sock.recv(64)
-        if data:
-            # update my update_grid
-            print ("updating grid")
-
+    def server_input(self):
+        while True:
+            readable, writable, errored = select.select([self.sock], [self.sock], [])
+            data = self.sock.recv(64)
+            if data:
+                # update my update_grid
+                print ("updating grid")
 
 
 
 if __name__ == "__main__":
     # Connect to the host
-    sock = connect() # perhaps argument port
+    c = Client() # perhaps argument port
 
-    # Thread for doing moves + send moves
-    Thread(target=player_moves, args = (sock,)).start()
+    c.start_moving()
 
     # Receive input from servers
-    server_input(sock)
+    c.server_input()
 
     print('closing socket')
-    sock.close()
+    c.disconnect_server()

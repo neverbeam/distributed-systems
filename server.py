@@ -5,13 +5,14 @@ import time
 
 class gridobject:
     """ Defines a grid object on the grid. Could be player or dragon"""
-    def __init__(self, name):
-        self.x = random.randint(0,25)
-        self.y = random.randint(0,25)
+    def __init__(self, x, y, name, client):
+        self.x = x
+        self.y = y
         self.hp = 10
         self.ap = 5
         self.cd = 0
-        self.name = name
+        self.name = str(name)
+        self.connection = client
 
 
 class Server:
@@ -19,6 +20,7 @@ class Server:
         self.start_up(port)
         # we could also place object on a 25x25 grid
         self.grid = {}
+        self.occupied_spaces = {}
 
     def start_up(self, port=10000):
         """ Create an server for das game. """
@@ -42,7 +44,18 @@ class Server:
 
     def update_grid(self, data):
         """Update my grid and pass on the message"""
-        # Requires server parsing here
+        # Parse the incomming command
+        thedata = data.decode('utf-8').split(";")
+
+        if thedata[0] == "move":
+            # data = move;playername;x;y
+            player = self.grid[thedata[1]]
+            player.x = thedata[2]
+            player.y = thedata[3]
+
+    def broadcast_clients(self, data):
+        """ Broadcast the message from 1 client to other clients"""
+        # Send data to other clients
         for clients in self.connections[1:]:
             clients.sendall(data)
 
@@ -58,8 +71,15 @@ class Server:
 
     def create_player(self, client):
         """Create a player and message this to every body else."""
-        player = gridobject(len(self.grid))
-        self.grid[client] = player
+        # Make sure that new player doesn't spawn on old player
+        while True:
+            x = random.randint(0,25)
+            y = random.randint(0,25)
+            if (x,y) not in self.occupied_spaces:
+                break
+
+        player = gridobject(x, y, len(self.grid), client)
+        self.grid[player.name] = player
         self.send_grid(client)
 
         # Send data to other clients
@@ -87,7 +107,8 @@ class Server:
                         data = client.recv(64)
                         print('received {!r}'.format(data))
                         if data:
-                            update = self.update_grid(data) # perhaps do this in another thread
+                            update = self.update_grid(data)
+                            self.broadcast_clients(data)
                         else: #connection has closed
                             print ("closing the connection")
                             self.connections.remove(client)

@@ -6,10 +6,10 @@ from threading import Thread
 class gridobject:
     def __init__(self, data):
         self.name = data[0]
-        self.x = data[1]
-        self.y = data[2]
-        self.hp = data[3]
-        self.ap = data[4]
+        self.x = int(data[1])
+        self.y = int(data[2])
+        self.hp = int(data[3])
+        self.ap = int(data[4])
 
         print ("made player with: \n name:{} \n x: {} \n y:{} \n hp: {} \n ap: {}".format(self.name, self.x, self.y, self.hp, self.ap))
 
@@ -20,7 +20,7 @@ class Client:
 
     def recieve_grid(self, sock):
         """ Receive the current state of the grid from the server. """
-        grid = {}
+        self.grid = {}
         data = ""
         # Keep receiving until an end has been send. TCP gives in order arrival
         while True:
@@ -34,7 +34,7 @@ class Client:
         for i in range(0, len(data), 5):
             playerdata = data[i:i+5]
             player = gridobject(playerdata)
-            grid[player.name] = player
+            self.grid[player.name] = player
 
         print ( "succesfully received grid")
 
@@ -61,7 +61,7 @@ class Client:
         """ Send an message/action to the server"""
         # Send data
         print('sending {!r}'.format(message))
-        self.sock.sendall(message)
+        self.sock.sendall(message.encode('utf-8'))
 
     def start_moving(self):
         """Thread for doing moves + send moves"""
@@ -70,16 +70,23 @@ class Client:
     def player_moves(self):
         """ User input function. """
         while True:
-            message = input("Create an action")
-            self.send_message(message.encode('utf-8'))
+            # message input action;player;argument
+            message = input("Create an action:\n")
+            self.update_grid(message)
+            self.send_message(message)
 
-    def update_grid(self,data):
+    def update_grid(self, data):
         """ Update my grid. """
+        data = data.split(';')
 
-        thedata = data.split(";")
-        if thedata[0] == "join":
-            player = gridobject(thedata[1:])
-            grid[player.name] = player
+        if data[0] == "join":
+            player = gridobject(data[1:])
+            self.grid[player.name] = player
+        elif data[0] == "move":
+            player = self.grid[data[1]]
+            player.x = int(data[2])
+            player.y = int(data[3])
+
 
 
     def server_input(self):
@@ -89,7 +96,7 @@ class Client:
             data = self.sock.recv(64)
             if data:
                 # update my update_grid
-                self.update_grid(data)
+                self.update_grid(data.decode('utf-8'))
                 print ("message: " + data.decode('utf-8'))
 
 

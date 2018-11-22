@@ -21,6 +21,7 @@ class Server:
         # we could also place object on a 25x25 grid
         self.grid = {}
         self.occupied_spaces = {}
+        self.keep_alive = True
 
     def start_up(self, port=10000):
         """ Create an server for das game. """
@@ -90,7 +91,7 @@ class Server:
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
-        while True:
+        while self.keep_alive:
             try:
                 # Wait for a connection
                 readable, writable, errored = select.select(self.connections, [], [])

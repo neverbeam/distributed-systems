@@ -1,5 +1,6 @@
 import socket
 import select
+import time
 from threading import Thread
 
 
@@ -15,10 +16,12 @@ class gridobject:
 
 
 class Client:
-    def __init__(self, port=10000):
+    def __init__(self, port=10000, demo=False):
+        self.demo = demo
+        self.keep_alive = True
         self.sock = self.connect_server(port=port)
 
-    def recieve_grid(self, sock):
+    def receive_grid(self, sock):
         """ Receive the current state of the grid from the server. """
         self.grid = {}
         data = ""
@@ -48,13 +51,14 @@ class Client:
         server_address = ('localhost', port)
         print('connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
-        self.recieve_grid(sock)
+        self.receive_grid(sock)
 
         return sock
 
     def disconnect_server(self):
         """ disconnect from the server"""
         # close the socket
+        print('closing socket')
         self.sock.close()
 
     def send_message(self, message):
@@ -69,9 +73,16 @@ class Client:
 
     def player_moves(self):
         """ User input function. """
-        while True:
+        while self.keep_alive:
             # message input action;player;argument
-            message = input("Create an action:\n")
+            message = "ERROR: no message"
+            if self.demo:
+                # Get a message from an actual human running the demo program
+                message = input("Create an action:\n")
+            else:
+                # This message should be created by an automated system (computer that plays game)
+                time.sleep(2)
+                message = "Debug message, keep_alive=" + str(self.keep_alive) + ", time=" + str(time.ctime())
             self.update_grid(message)
             self.send_message(message)
 
@@ -91,7 +102,7 @@ class Client:
 
     def server_input(self):
         """ Check for server input. """
-        while True:
+        while self.keep_alive:
             readable, writable, errored = select.select([self.sock], [self.sock], [])
             data = self.sock.recv(64)
             if data:
@@ -103,7 +114,7 @@ class Client:
 
 if __name__ == "__main__":
     # Connect to the host
-    c = Client() # perhaps argument port
+    c = Client(demo=True) # perhaps argument port
 
     c.start_moving()
 

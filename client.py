@@ -2,7 +2,7 @@ import socket
 import select
 import time
 from threading import Thread
-
+from queue import Queue
 
 class gridobject:
     def __init__(self, data):
@@ -20,6 +20,7 @@ class Client:
         self.demo = demo
         self.keep_alive = True
         self.sock = self.connect_server(port=port)
+        self.queue = Queue()
 
     def receive_grid(self, sock):
         """ Receive the current state of the grid from the server. """
@@ -69,15 +70,24 @@ class Client:
 
     def start_moving(self):
         """Thread for doing moves + send moves"""
-        Thread(target=self.player_moves, args=()).start()
+        Thread(target=self.server_input, args=(self.queue,)).start()
 
     def player_moves(self):
         """ User input function. """
         while self.keep_alive:
+            # First process server dataself.
+            while not self.queue.empty():
+                data = self.queue.get()
+                print( "data from thread:", data)
+                self.update_grid(data)
+                # do something with row
+                self.queue.task_done()
+
             # message input action;player;argument
             message = "ERROR: no message"
             if self.demo:
                 # Get a message from an actual human running the demo program
+                # THIS BLOCKS OTHER INPUT NOW!!
                 message = input("Create an action:\n")
             else:
                 # This message should be created by an automated system (computer that plays game)
@@ -100,14 +110,15 @@ class Client:
 
 
 
-    def server_input(self):
+    def server_input(self, queue):
         """ Check for server input. """
         while self.keep_alive:
             readable, writable, errored = select.select([self.sock], [self.sock], [])
             data = self.sock.recv(64)
             if data:
                 # update my update_grid
-                self.update_grid(data.decode('utf-8'))
+                queue.put(data.decode('utf-8'))
+                #self.update_grid(data.decode('utf-8'))
                 print ("message: " + data.decode('utf-8'))
 
 
@@ -119,7 +130,7 @@ if __name__ == "__main__":
     c.start_moving()
 
     # Receive input from servers
-    c.server_input()
+    c.player_moves()
 
     print('closing socket') # probably requires try except keyboard interrupt
     c.disconnect_server()

@@ -32,7 +32,7 @@ class Populator:
         print("Created client process")
         c.start_moving()
         # Receive input from servers
-        c.server_input()
+        c.player_moves()
         time.sleep(10)
 
         # right now just kill the client this way
@@ -85,7 +85,7 @@ class Populator:
             if len(args) > 1:
                 # check to see if a quantity is given
                 quantity = 1
-                if len(args) > 2:
+                if len(args) >= 2:
                     try:
                         quantity = int(args[2])
                     except (ValueError, TypeError):
@@ -98,7 +98,7 @@ class Populator:
                         for i in range(quantity):
                             name = None
                             while name == None:
-                                try_name = "s" + str(name_i)
+                                try_name = "s" + str(i)
                                 if try_name not in self.servers.keys():
                                     name = try_name
                             # create and start the process
@@ -109,7 +109,7 @@ class Populator:
                         for i in range(quantity):
                             name = None
                             while name == None:
-                                try_name = "c" + str(name_i)
+                                try_name = "c" + str(i)
                                 if try_name not in self.clients.keys():
                                     name = try_name
                             # create and start the process
@@ -170,4 +170,3 @@ class Populator:
 if __name__ == '__main__':
     # set manual to true if you want to manually create servers and clients
     p = Populator(manual=True)
-        

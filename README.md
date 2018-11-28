@@ -1,10 +1,10 @@
 # distributed-systems
-Distributed systems Das game 
+Distributed systems Das game
 
 
-ToDo: 
+ToDo:
 - More parse functions
-- Disconnect etc functionality in server
+- Disconnect etc functionality in server (Martijn, fixed)
 - Thread locking cliets if ctrl + c -- FIX issue
 - regex for parse functions of client input
 - game ticks

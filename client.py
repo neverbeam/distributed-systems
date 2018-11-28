@@ -68,7 +68,7 @@ class Client:
         print('sending {!r}'.format(message))
         self.sock.sendall(message.encode('utf-8'))
 
-    def start_moving(self):
+    def start_receiving(self):
         """Thread for doing moves + send moves"""
         Thread(target=self.server_input, args=(self.queue,)).start()
 
@@ -113,7 +113,8 @@ class Client:
     def server_input(self, queue):
         """ Check for server input. """
         while self.keep_alive:
-            readable, writable, errored = select.select([self.sock], [self.sock], [])
+            readable, writable, errored = select.select([self.sock], [], [])
+
             data = self.sock.recv(64)
             if data:
                 # update my update_grid
@@ -127,7 +128,7 @@ if __name__ == "__main__":
     # Connect to the host
     c = Client(demo=True) # perhaps argument port
 
-    c.start_moving()
+    c.start_receiving()
 
     # Receive input from servers
     c.player_moves()

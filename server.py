@@ -23,6 +23,7 @@ class Server:
         self.occupied_spaces = {}
         self.keep_alive = True
 
+
     def start_up(self, port=10000):
         """ Create an server for das game. """
         # Create a TCP/IP socket
@@ -40,7 +41,7 @@ class Server:
     def power_down(self):
         """ Close down the server. """
         print ("Terminating and closing existing connections")
-        for connection in self.connections:
+        for connection in self.connections[1:]:
             connection.close()
 
     def update_grid(self, data):
@@ -88,6 +89,16 @@ class Server:
         for clients in self.connections[1:]:
             clients.sendall(data.encode('utf-8'))
 
+    def remove_client(self, client):
+        """ Removing client if disconnection happens"""
+        # Search whole grid untill object has been found (perhaps keep dict for player,connection)
+        for key,value in self.grid.items():
+            if value.connection == client:
+                break
+
+        del self.grid[key]
+        self.connections.remove(client)
+        print("connection closed")
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
@@ -111,11 +122,11 @@ class Server:
                             update = self.update_grid(data)
                             self.broadcast_clients(data)
                         else: #connection has closed
-                            print ("closing the connection")
-                            self.connections.remove(client)
+                            self.remove_client(client)
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
                 self.power_down()
+                break
 
 
 if __name__ == '__main__':

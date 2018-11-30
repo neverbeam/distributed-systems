@@ -72,7 +72,7 @@ class Client:
 
     def start_receiving(self):
         """Thread for doing moves + send moves"""
-        Thread(target=self.server_input, args=(self.queue,)).start()
+        Thread(target=self.server_input, args=(self.queue,), daemon = True).start()
 
     def player_moves(self):
         """ User input function. """
@@ -115,7 +115,6 @@ class Client:
             player = self.grid[data[1]]
             player.x = int(data[2])
             player.y = int(data[3])
-
 
 
     def server_input(self, queue):

@@ -67,5 +67,12 @@ class Player(Character):
             self.x -= 1
 
     def heal_player(player):
-         heal_amount = self.ap
-         player.hp = player.hp + heal_amount
+        distance =
+
+        if distance > 5:
+            print("Error: Healing failed! Distance is greater than 5.")
+        else:
+            heal_amount = self.ap
+            player.hp += heal_amount
+            if player.hp > player.max_hp:
+                player.hp = player.max_hp

@@ -16,8 +16,10 @@ class gridobject:
 
 
 class Client:
-    def __init__(self, port=10000, demo=False):
+    def __init__(self, port=10000, demo=False, life_time=1000):
         self.demo = demo
+        self.life_time = life_time
+        self.start_time = time.time()
         self.keep_alive = True
         self.sock = self.connect_server(port=port)
         self.queue = Queue()
@@ -90,9 +92,15 @@ class Client:
                 # THIS BLOCKS OTHER INPUT NOW!!
                 message = input("Create an action:\n")
             else:
-                # This message should be created by an automated system (computer that plays game)
-                time.sleep(2)
-                message = "Debug message, keep_alive=" + str(self.keep_alive) + ", time=" + str(time.ctime())
+                # check if the player should disconnect based on playtime
+                if self.life_time < (time.time() - self.start_time):
+                    # Let the server know you want to disconnect
+                    message = ("DISCONNECTING PLS")
+                    self.keep_alive = False
+                else:
+                    # This message should be created by an automated system (computer that plays game)
+                    time.sleep(2)
+                    message = "Debug message, time=" + str(time.time() - self.start_time)
             self.update_grid(message)
             self.send_message(message)
 

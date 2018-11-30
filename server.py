@@ -16,12 +16,14 @@ class gridobject:
 
 
 class Server:
-    def __init__(self, port=10000):
+    def __init__(self, port=10000, life_time=None, check_alive=1):
         self.start_up(port)
         # we could also place object on a 25x25 grid
         self.grid = {}
         self.occupied_spaces = {}
-        self.keep_alive = True
+        self.life_time = life_time
+        self.start_time = time.time()
+        self.check_alive = check_alive
 
 
     def start_up(self, port=10000):
@@ -102,31 +104,40 @@ class Server:
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
-        while self.keep_alive:
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             try:
                 # Wait for a connection
-                readable, writable, errored = select.select(self.connections, [], [])
-
-                for client in readable:
-                    # If server side, then new connection
-                    if client is self.sock:
-                        connection, client_address = self.sock.accept()
-                        print ("Someone connected from {}".format(client_address))
-                        self.create_player(connection)
-                        self.connections.append(connection)
-                    # Else we have some data
-                    else:
-                        data = client.recv(64)
-                        print('received {!r}'.format(data))
-                        if data:
-                            update = self.update_grid(data)
-                            self.broadcast_clients(data)
-                        else: #connection has closed
-                            self.remove_client(client)
+                readable, writable, errored = select.select(self.connections, [], [], self.check_alive)
+                if not readable and not writable and not errored:
+                    # timeout is reached
+                    print("No message received")
+                    
+                else:
+                    # got a message
+                    for client in readable:
+                        # If server side, then new connection
+                        if client is self.sock:
+                            connection, client_address = self.sock.accept()
+                            print ("Someone connected from {}".format(client_address))
+                            self.create_player(connection)
+                            self.connections.append(connection)
+                        # Else we have some data
+                        else:
+                            data = client.recv(64)
+                            print('received {!r}'.format(data))
+                            if data:
+                                update = self.update_grid(data)
+                                self.broadcast_clients(data)
+                            else: #connection has closed
+                                self.remove_client(client)
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
-                self.power_down()
+                # self.power_down()
                 break
+
+        # always power down for right now
+        print("Server shutting down")
+        self.power_down()
 
 
 if __name__ == '__main__':

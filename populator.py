@@ -26,25 +26,25 @@ class Populator:
             self.test_setup()
 
     # creates a running client
-    def client_process(self, send_port, demo=False):
+    def client_process(self, send_port, play_time, demo=False):
         # Connect to the host
-        c = Client(demo=demo) # perhaps argument port
+        c = Client(port=send_port, demo=demo, life_time=play_time) # perhaps argument port
         print("Created client process")
-        c.start_moving()
         # Receive input from servers
+        c.start_receiving()
+        # let the client do moves until its playtime is up
         c.player_moves()
-        time.sleep(10)
 
-        # right now just kill the client this way
-        # should be done in a function in client tho
-        c.keep_alive = False # does not even work
+        # # right now just kill the client this way
+        # # should be done in a function in client tho
+        # c.keep_alive = False # does not even work
         c.disconnect_server()
 
 
     # creates a running server
-    def server_process(self, listen_port):
+    def server_process(self, listen_port, run_time, check_alive):
         # Setup a new server
-        s = Server()
+        s = Server(port=listen_port, life_time=run_time, check_alive=check_alive)
         print("Created server process")
         s.read_ports()
 
@@ -52,16 +52,16 @@ class Populator:
     # runs a test version that should work
     def test_setup(self):
         # run a server
-        s1 = mp.Process(target=self.server_process, args=(10000,))
+        s1 = mp.Process(target=self.server_process, args=(10000,10, 1))
         s1.start()
 
         # spawn a client process
-        c1 = mp.Process(target=self.client_process, args=(10000,))
+        c1 = mp.Process(target=self.client_process, args=(10000,7))
         c1.start()
 
         # spawn another client process
         time.sleep(1)
-        c2 = mp.Process(target=self.client_process, args=(10000,))
+        c2 = mp.Process(target=self.client_process, args=(10000,3))
         c2.start()
 
         # wait until the client processes terminate
@@ -169,4 +169,4 @@ class Populator:
 
 if __name__ == '__main__':
     # set manual to true if you want to manually create servers and clients
-    p = Populator(manual=True)
+    p = Populator(manual=False)

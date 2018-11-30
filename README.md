@@ -5,8 +5,8 @@ Distributed systems Das game
 ToDo:
 - More parse functions
 - Disconnect etc functionality in server (Martijn, fixed)
-- Thread locking cliets if ctrl + c -- FIX issue
-- regex for parse functions of client input
+- Thread locking clients if ctrl + c -- FIX issue(Martijn, fixed)
+- regex for parse functions of client input (not neccesary, skipped)
 - game ticks
 - correctness check of commands
 

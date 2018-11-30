@@ -111,7 +111,7 @@ class Server:
                 if not readable and not writable and not errored:
                     # timeout is reached
                     print("No message received")
-                    
+
                 else:
                     # got a message
                     for client in readable:
@@ -124,7 +124,7 @@ class Server:
                         # Else we have some data
                         else:
                             data = client.recv(64)
-                            print('received {!r}'.format(data))
+                            print(data)
                             if data:
                                 update = self.update_grid(data)
                                 self.broadcast_clients(data)

@@ -62,6 +62,7 @@ class Client:
         """ disconnect from the server"""
         # close the socket
         print('closing socket')
+        time.sleep(0.000001) #Need a timing here, to prevent too quick shutdown
         self.sock.close()
 
     def send_message(self, message):
@@ -97,12 +98,15 @@ class Client:
                     # Let the server know you want to disconnect
                     message = ("DISCONNECTING PLS")
                     self.keep_alive = False
+                    print ("DISONNECTING -----------------------------------------------------")
+
                 else:
                     # This message should be created by an automated system (computer that plays game)
                     time.sleep(2)
                     message = "Debug message, time=" + str(time.time() - self.start_time)
             self.update_grid(message)
             self.send_message(message)
+
 
     def update_grid(self, data):
         """ Update my grid. """

@@ -29,7 +29,8 @@ class Game:
             self.players.remove(self.map[y][x])
             self.map[y][x] = "*"
 
-    def remove_player_
-
-    def spawn_dragons():
-        dragon = Dragon().__init__(x=10,y=10)
+    def remove_player_id(self, ID):
+        for x in range(self.width):
+            for y in range(self.height):
+                if self.map[x][y] != "*" and self.map[x][y].id == ID:
+                    self.remove_user(x, y)

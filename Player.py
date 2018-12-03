@@ -1,37 +1,31 @@
 """
 Author: Kevin Rojer & Ali Almoshawah
 Version: 1.0
-Date: 30 November 2018
+Date: 3 December 2018
 """
 
 import random
-import
 
 class User:
 
-    def __init__(self, ID, x, y):
+    def __init__(self, ID, type, x, y):
+        self.ID = ID
+        self.type = type
         self.x = x
         self.y =  y
 
-    def is_move_valid(direction):
+    def attack(victim):
+        distance = get_distance(victim)
 
-
-    def attack(character):
-
-        if is_attack_valid(character):
-            character.hp = character.hp - self.ap
+        if distance > 2:
+            print("Error: Attack not valid! Distance is grater than 2.")
         else:
-            print("Attack not valid!")
+            victim.hp -= self.ap
+            if victim.hp <= 0:
+                print("Victim is dead! Remove victim from game.")
 
-
-    def is_attack_valid(character):
-        horiz_diff = self.x - character.x
-        vert_diff = self.y - character.y
-
-        if horiz_diff in range(-2,2) and vert_diff in range(-2,2):
-            return True
-
-        return False
+    def get_distance(victim):
+        return math.abs(self.x - victim.x) + math.abs(self.y - victim.y)
 
 
 class Dragon(User):
@@ -39,8 +33,6 @@ class Dragon(User):
     def __init__(self, ID, x, y,):
         Character.__init__(self)
         self.ID = ID
-        # self.x = x
-        # self.y = y
         self.max_hp = random.randint(50,100)
         self.ap = random.randint(5,20)
         self.hp = self.max_hp
@@ -50,8 +42,6 @@ class Player(Character):
     def __init__(self, ID, x, y):
         Character.__init__(self):
         self.ID = ID
-        # self.x = x
-        # self.y = y
         self.max_hp = random.randint(10,20)
         self.ap = random.randint(1,10)
         self.hp = self.max_hp
@@ -67,7 +57,7 @@ class Player(Character):
             self.x -= 1
 
     def heal_player(player):
-        distance =
+        distance = self.get_distance(player)
 
         if distance > 5:
             print("Error: Healing failed! Distance is greater than 5.")

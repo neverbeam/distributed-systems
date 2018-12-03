@@ -10,17 +10,26 @@ import Dragon
 
 class Game:
 
-    players = []
-    dragons = []
+    def __init__(self, ID, width, height, max_player, max_dragon):
+        self.ID = ID
+        self.width = width
+        self.height = height
+        self.max_players = max_player
+        self.max_dragons = max_dragon
+        self.map = [["*" for j in range(self.width)] for i in range(self.height)]
+        self.players = []
 
-    def __init__(self):
-        self.max_players = 100
-        self.max_dragons = 20
-        self.ID = 1
+    def add_player():
 
-    def join():
 
-    def leave():
+    def remove_player(self, x, y):
+        if self.map[y][x] == "*":
+            print("Error: Cannot remove player, spot is empty.")
+        else:
+            self.players.remove(self.map[y][x])
+            self.map[y][x] = "*"
+
+    def remove_player_
 
     def spawn_dragons():
         dragon = Dragon().__init__(x=10,y=10)

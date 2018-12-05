@@ -19,8 +19,15 @@ class Game:
         self.map = [["*" for j in range(self.width)] for i in range(self.height)]
         self.players = []
 
-    def add_player():
-
+    def add_player(self, player, x, y):
+        if self.map[y][x] == 0:
+            self.map[y][x] == player
+            self.players.append(player)
+            player.x = x
+            player.y = y
+            print("Player ({0}) added to the game at position ({1},{2}).".format(player.ID, x, y))
+        else:
+            print("Error: Position ({0},{1}) is occupied.".format(x, y))
 
     def remove_player(self, x, y):
         if self.map[y][x] == "*":

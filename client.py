@@ -3,17 +3,7 @@ import select
 import time
 from threading import Thread
 from queue import Queue
-
-class gridobject:
-    def __init__(self, data):
-        self.name = data[0]
-        self.x = int(data[1])
-        self.y = int(data[2])
-        self.hp = int(data[3])
-        self.ap = int(data[4])
-
-        print ("made player with: \n name:{} \n x: {} \n y:{} \n hp: {} \n ap: {}".format(self.name, self.x, self.y, self.hp, self.ap))
-
+from Game import *
 
 class Client:
     def __init__(self, port=10000, demo=False, life_time=1000):
@@ -26,7 +16,7 @@ class Client:
 
     def receive_grid(self, sock):
         """ Receive the current state of the grid from the server. """
-        self.grid = {}
+        self.game = Game()
         data = ""
         # Keep receiving until an end has been send. TCP gives in order arrival
         while True:
@@ -35,12 +25,22 @@ class Client:
                 break
 
         #Parse the data so that the user contains the whole grid.
+
+        # type, ID, x, y, hp , ap,
         data = data.split(";")
         del data[-1]
-        for i in range(0, len(data), 5):
-            playerdata = data[i:i+5]
-            player = gridobject(playerdata)
-            self.grid[player.name] = player
+        for i in range(0, len(data), 6):
+            playerdata = data[i:i+6]
+            if data[0] == "Player":
+                player = Player(int(playerdata[1]), int(playerdata[2]), int(playerdata[3]) ,self.game)
+                player.hp = int(data[5])
+                player.ap = int(data[4])
+            elif data[0] == "Dragon":
+                player = Dragon(int(playerdata[1]), int(playerdata[2]), int(playerdata[3]) ,self.game)
+                player.hp = int(data[5])
+                player.ap = int(data[4])
+
+            self.game.add_player(player)
 
         print ( "succesfully received grid")
 
@@ -82,7 +82,7 @@ class Client:
             while not self.queue.empty():
                 data = self.queue.get()
                 print( "data from thread:", data)
-                self.update_grid(data)
+                self.game.update_grid(data)
                 # do something with row
                 self.queue.task_done()
 
@@ -95,7 +95,7 @@ class Client:
             else:
                 # check if the player should disconnect based on playtime
                 if self.life_time < (time.time() - self.start_time):
-                    # Let the server know you want to disconnect
+                    # Let the server know you want tselfo disconnect
                     message = ("DISCONNECTING PLS")
                     self.keep_alive = False
                     print ("DISONNECTING -----------------------------------------------------")
@@ -104,21 +104,9 @@ class Client:
                     # This message should be created by an automated system (computer that plays game)
                     time.sleep(2)
                     message = "Debug message, time=" + str(time.time() - self.start_time)
-            self.update_grid(message)
+            self.game.update_grid(message)
             self.send_message(message)
 
-
-    def update_grid(self, data):
-        """ Update my grid. """
-        data = data.split(';')
-
-        if data[0] == "join":
-            player = gridobject(data[1:])
-            self.grid[player.name] = player
-        elif data[0] == "move":
-            player = self.grid[data[1]]
-            player.x = int(data[2])
-            player.y = int(data[3])
 
 
     def server_input(self, queue):
@@ -129,7 +117,7 @@ class Client:
             data = self.sock.recv(64)
             if data:
                 # update my update_grid
-                queue.put(data.decode('utf-8'))
+                queue.put(data)
                 #self.update_grid(data.decode('utf-8'))
                 print ("message: " + data.decode('utf-8'))
 

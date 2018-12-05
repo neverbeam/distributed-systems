@@ -5,37 +5,56 @@ Date: 30 November 2018
 """
 
 import Arena
-import Player
-import Dragon
+from Player import *
 
 class Game:
 
-    def __init__(self, ID, width, height, max_player, max_dragon):
+    def __init__(self, ID=1, max_player=100, max_dragon=25):
         self.ID = ID
-        self.width = width
-        self.height = height
+        self.width = 25
+        self.height = 25
         self.max_players = max_player
         self.max_dragons = max_dragon
         self.map = [["*" for j in range(self.width)] for i in range(self.height)]
-        self.players = []
+        self.players = {}
 
-    def add_player(self, player, x, y):
-        if self.map[y][x] == 0:
-            self.map[y][x] == player
-            self.players.append(player)
-            player.x = x
-            player.y = y
-            print("Player ({0}) added to the game at position ({1},{2}).".format(player.ID, x, y))
+    def add_player(self, player):
+
+        if self.map[player.y][player.x] == "*":
+            self.map[player.y][player.x] = player
+            self.players[player.ID] = player
+            print("Player ({0}) added to the game at position ({1},{2}).".format(player.ID, player.x, player.y))
         else:
-            print("Error: Position ({0},{1}) is occupied.".format(x, y))
+            print("Error: Position ({0},{1}) is occupied.".format(player.x, player.y))
 
-    def remove_player(self, x, y):
+    def remove_player(self, player):
+        y = player.y
+        x = player.x
         if self.map[y][x] == "*":
             print("Error: Cannot remove player, spot is empty.")
         else:
             self.players.remove(self.map[y][x])
             self.map[y][x] = "*"
+            # perhaps delete the instance here
 
+    def update_grid(self, data):
+        """Update my grid"""
+
+        # TODO: Perhaps make some individual fucntions here
+        if data[0] == "move":
+            player = self.players[int(data[1])]
+            self.map[player.y][player.x] = "*"
+            player.x = int(data[2])
+            player.y = int(data[3])
+            self.map[int(data[3])][int(data[2])] = player
+
+        # MOre parse functions  here
+
+        else:
+            print("Not a valid command")
+
+
+    # what is the idea of this?
     def remove_player_id(self, ID):
         for x in range(self.width):
             for y in range(self.height):

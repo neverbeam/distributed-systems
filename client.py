@@ -16,7 +16,7 @@ class Client:
 
     def receive_grid(self, sock):
         """ Receive the current state of the grid from the server. """
-        self.game = Game()
+        self.game = Game(self)
         data = ""
         # Keep receiving until an end has been send. TCP gives in order arrival
         while True:
@@ -42,6 +42,7 @@ class Client:
 
             self.game.add_player(player)
 
+        self.myplayer = player # Is this in order?
         print ( "succesfully received grid")
 
 
@@ -118,7 +119,6 @@ class Client:
             if data:
                 # update my update_grid
                 queue.put(data)
-                #self.update_grid(data.decode('utf-8'))
                 print ("message: " + data.decode('utf-8'))
 
 

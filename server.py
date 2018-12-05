@@ -11,7 +11,8 @@ class Server:
         self.life_time = life_time
         self.start_time = time.time()
         self.check_alive = check_alive
-        self.game = Game(1,2,1)
+        self.game = Game(self, 1,2,1)
+        self.ID_connection = {}
 
 
     def start_up(self, port=10000):
@@ -61,6 +62,7 @@ class Server:
                 break
 
         player = Player(self.game.ID, x, y, self.game)
+        self.ID_connection[client] = player
         self.game.ID += 1
         self.game.add_player(player)
         self.send_grid(client)
@@ -72,12 +74,8 @@ class Server:
 
     def remove_client(self, client):
         """ Removing client if disconnection happens"""
-        # Search whole grid untill object has been found (perhaps keep dict for player,connection)
-        for key,value in self.grid.items():
-            if value.connection == client:
-                break
-
-        del self.grid[key]
+        player = self.ID_connection[client]
+        self.game.remove_player(player)
         self.connections.remove(client)
         print("connection closed")
 

@@ -10,15 +10,14 @@ class Arena:
         self.width = width
         self.height = height
 
-def draw_grid(graph, width=2):
-    for y in range(graph.height):
-        for x in range(graph.width):
-             print("%%-%ds" % width % '.', end="")
-        print()
+    def draw_grid(self):
+        for y in range(self.height):
+            for x in range(self.width):
+                 #("%%-%ds" % 2 % '.', end="")
+                 print("{}{}".format(".", 2 * " " ), end="")
+            print()
 
-def main():
-    g = Arena(25,25)
-    draw_grid(g)
 
 if __name__ == '__main__':
-    main()
+    g = Arena(25,25)
+    g.draw_grid()

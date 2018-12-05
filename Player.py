@@ -15,6 +15,7 @@ class User:
         self.game = game
 
     def attack(self, victim):
+        """ Attack another player and remove if they have no hp left."""
         distance = self.get_distance(victim)
 
         if distance > 2:
@@ -24,6 +25,7 @@ class User:
             if victim.hp <= 0:
                 print("Victim is dead! Remove victim from game.")
                 self.game.remove_player(victim)
+
 
     def get_distance(self, victim):
         return abs(self.x - victim.x) + abs(self.y - victim.y)
@@ -48,30 +50,30 @@ class Player(User):
         self.hp = self.max_hp
 
     def move_player(self, direction):
+        """ Move the player in the right direction. """
         if direction == "up":
-            if self.y == board.height:
+            if self.y == board.height or self.y+1 != "!*":
                 print("Error: Invalid move! Cannot move up, player on the edge.")
             else:
                 self.y += 1
         elif direction == "down":
-            if self.y == 0:
+            if self.y == 0 or self.y-1 != "!*":
                 print("Error: Invalid move! Cannot move down, player on the edge.")
             else:
                 self.y -= 1
         elif direction == "left":
-            if self.x == 0:
+            if self.x == 0 or self.x+1 != "!*":
                 print("Error: Invalid move! Cannot move left, player on the edge.")
             else:
                 self.x -= 1
         elif direction == "right":
-            if self.x == board.width:
+            if self.x == board.width or self.x-1 != "!*":
                 print("Error: Invalid move! Cannot move right, player on the edge.")
             else:
                 self.x += 1
 
-        # how about invalid moves if players are already there?
-
     def heal_player(self, player):
+        """ heal another player. """
         distance = self.get_distance(player)
 
         if distance > 5:

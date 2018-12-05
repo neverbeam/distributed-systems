@@ -9,7 +9,7 @@ from Player import *
 
 class Game:
 
-    def __init__(self, ID=1, max_player=100, max_dragon=25):
+    def __init__(self, upper, ID=1, max_player=100, max_dragon=25):
         self.ID = ID
         self.width = 25
         self.height = 25
@@ -17,9 +17,10 @@ class Game:
         self.max_dragons = max_dragon
         self.map = [["*" for j in range(self.width)] for i in range(self.height)]
         self.players = {}
+        self.upper = upper
 
     def add_player(self, player):
-
+        """ Add players to the grid."""
         if self.map[player.y][player.x] == "*":
             self.map[player.y][player.x] = player
             self.players[player.ID] = player
@@ -28,18 +29,18 @@ class Game:
             print("Error: Position ({0},{1}) is occupied.".format(player.x, player.y))
 
     def remove_player(self, player):
+        """ Remove players from the grid."""
         y = player.y
         x = player.x
         if self.map[y][x] == "*":
             print("Error: Cannot remove player, spot is empty.")
         else:
-            self.players.remove(self.map[y][x])
+            del self.players[player.ID]
             self.map[y][x] = "*"
             # perhaps delete the instance here
 
     def update_grid(self, data):
         """Update my grid"""
-
         # TODO: Perhaps make some individual fucntions here
         if data[0] == "move":
             player = self.players[int(data[1])]

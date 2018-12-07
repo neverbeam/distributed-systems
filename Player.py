@@ -19,7 +19,7 @@ class User:
         distance = self.get_distance(victim)
 
         if distance > 2:
-            print("Error: Attack not valid! Distance is grater than 2.")
+            print("Error: Attack not valid! Distance is greater than 2.")
         else:
             victim.hp -= self.ap
             if victim.hp <= 0:
@@ -52,22 +52,22 @@ class Player(User):
     def move_player(self, direction):
         """ Move the player in the right direction. """
         if direction == "up":
-            if self.y == board.height or self.y+1 != "!*":
+            if self.y == self.game.height-1 or self.game.map[self.y+1][self.x] != "*":
                 print("Error: Invalid move! Cannot move up, player on the edge.")
             else:
                 self.y += 1
         elif direction == "down":
-            if self.y == 0 or self.y-1 != "!*":
+            if self.y == 0 or self.game.map[self.y-1][self.x] != "*":
                 print("Error: Invalid move! Cannot move down, player on the edge.")
             else:
                 self.y -= 1
         elif direction == "left":
-            if self.x == 0 or self.x+1 != "!*":
+            if self.x == 0 or  self.game.map[self.y][self.x+1] != "*":
                 print("Error: Invalid move! Cannot move left, player on the edge.")
             else:
                 self.x -= 1
         elif direction == "right":
-            if self.x == board.width or self.x-1 != "!*":
+            if self.x == self.game.width-1 or self.game.map[self.y][self.x-1] != "*":
                 print("Error: Invalid move! Cannot move right, player on the edge.")
             else:
                 self.x += 1

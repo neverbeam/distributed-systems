@@ -32,11 +32,11 @@ class Client:
         for i in range(0, len(data), 6):
             playerdata = data[i:i+6]
             if data[0] == "Player":
-                player = Player(int(playerdata[1]), int(playerdata[2]), int(playerdata[3]) ,self.game)
+                player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                 player.hp = int(data[5])
                 player.ap = int(data[4])
             elif data[0] == "Dragon":
-                player = Dragon(int(playerdata[1]), int(playerdata[2]), int(playerdata[3]) ,self.game)
+                player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                 player.hp = int(data[5])
                 player.ap = int(data[4])
 
@@ -81,11 +81,13 @@ class Client:
         while self.keep_alive:
             # First process server dataself.
             while not self.queue.empty():
-                data = self.queue.get()
-                print( "data from thread:", data)
-                self.game.update_grid(data)
-                # do something with row
-                self.queue.task_done()
+                data = self.queue.get().decode('utf-8')
+                print ("given data", data)
+                if data.split(";")[1] != self.myplayer.ID:
+                    print( "data from thread:", data)
+                    self.game.update_grid(data)
+                    # do something with row
+                    self.queue.task_done()
 
             # message input action;player;argument
             message = "ERROR: no message"
@@ -119,7 +121,7 @@ class Client:
             if data:
                 # update my update_grid
                 queue.put(data)
-                print ("message: " + data.decode('utf-8'))
+                print ("message: incomming " + data.decode('utf-8'))
 
 
 

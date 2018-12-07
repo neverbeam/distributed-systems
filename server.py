@@ -56,12 +56,12 @@ class Server:
         """Create a player and message this to every body else."""
         # Make sure that new player doesn't spawn on old player
         while True:
-            x = random.randint(0,24)
-            y = random.randint(0,24)
+            x = random.randint(0,25)
+            y = random.randint(0,25)
             if self.game.map[y][x] == "*":
                 break
 
-        player = Player(self.game.ID, x, y, self.game)
+        player = Player(str(self.game.ID), x, y, self.game)
         self.ID_connection[client] = player
         self.game.ID += 1
         self.game.add_player(player)
@@ -103,7 +103,7 @@ class Server:
                             data = client.recv(64)
                             print(data)
                             if data:
-                                update = self.game.update_grid(data.decode('utf-8').split(";")
+                                update = self.game.update_grid(data.decode('utf-8')
 )
                                 self.broadcast_clients(data)
                             else: #connection has closed

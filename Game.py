@@ -11,8 +11,8 @@ class Game:
 
     def __init__(self, upper, ID=1, max_player=100, max_dragon=25):
         self.ID = ID
-        self.width = 25
-        self.height = 25
+        self.width = 25 + 1
+        self.height = 25 + 1
         self.max_players = max_player
         self.max_dragons = max_dragon
         self.map = [["*" for j in range(self.width)] for i in range(self.height)]
@@ -41,23 +41,41 @@ class Game:
 
     def update_grid(self, data):
         """Update my grid"""
-        # TODO: Perhaps make some individual fucntions here
+        # TODO: Perhaps make some individual functions here
+        # move;player;up/down/left/rigth
+        data = data.split(";")
+        print(data)
         if data[0] == "move":
-            player = self.players[int(data[1])]
+            player = self.players[data[1]]
             self.map[player.y][player.x] = "*"
-            player.x = int(data[2])
-            player.y = int(data[3])
-            self.map[int(data[3])][int(data[2])] = player
-
-        # MOre parse functions  here
+            player.move_player(data[2]) # Perhaps do some error checking here
+            self.map[player.y][player.x] = player
+            print("new coordinates", player.y, player.x)
+        # attack;player1;player2
+        elif data[0] == "attack":
+            player1 = self.players[data[1]]
+            player2 = self.players[data[2]]
+            player1.attack(player2)
+        elif data[0] == "join":
+            player = Player(data[1], int(data[2]), int(data[3]), self.game)
+            player.hp = int(data[4])
+            player.ap = int(data[5])
+            self.players[data[1]]=player
+        elif data[0] == "heal":
+            player1 = self.players[data[1]]
+            player2 = self.players[data[2]]
+            player1.heal_player(player2)
 
         else:
             print("Not a valid command")
 
 
+
+
+
     # what is the idea of this?
-    def remove_player_id(self, ID):
-        for x in range(self.width):
-            for y in range(self.height):
-                if self.map[x][y] != "*" and self.map[x][y].id == ID:
-                    self.remove_user(x, y)
+    # def remove_player_id(self, ID):
+    #     for x in range(self.width):
+    #         for y in range(self.height):
+    #             if self.map[x][y] != "*" and self.map[x][y].id == ID:
+    #                 self.remove_user(x, y)

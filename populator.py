@@ -29,8 +29,8 @@ class Populator:
         if manual:
             self.get_input()
         else:
-            self.wow_setup(1)
-            # self.test_setup()
+            #self.wow_setup(1)
+            self.test_setup()
 
     # creates a running client
     def client_process(self, send_port, play_time, demo=False):

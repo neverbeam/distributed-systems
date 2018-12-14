@@ -69,8 +69,7 @@ class Client:
     def disconnect_server(self):
         """ disconnect from the server"""
         # close the socket
-        print('closing socket!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-        self.sock.close()
+        self.sock.shutdown(socket.SHUT_WR)
 
     def send_message(self, message):
         """ Send an message/action to the server"""
@@ -130,7 +129,7 @@ class Client:
                     if message == "":
                         for dragon in dragonlist:
                             if self.myplayer.get_distance(dragon)<3:
-                                message = "attack;{};{}".format(self.myplayer.ID, dragon.ID)
+                                message = "attack;{};{};".format(self.myplayer.ID, dragon.ID)
                                 break
                     # message unchanged, no dragon in place
                     if message == "":
@@ -151,7 +150,7 @@ class Client:
                             directions.append("down")
                         elif (min_dragon.y-self.myplayer.y)>0:
                             directions.append("up")
-                        message = "move;{};{}".format(self.myplayer.ID, np.random.choice(directions)) ### What TODO if move is invalid?
+                        message = "move;{};{};".format(self.myplayer.ID, np.random.choice(directions)) ### What TODO if move is invalid?
 
                     #message = "Debug message;, time=" + str(time.time() - self.start_time)
             self.game.update_grid(message)

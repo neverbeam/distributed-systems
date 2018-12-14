@@ -39,6 +39,8 @@ class Populator:
         # # should be done in a function in client tho
         # c.keep_alive = False # does not even work
         c.disconnect_server()
+        time.sleep(5) #Need a timing here, to prevent too quick shutdown
+        print("removing thread")
 
 
     # creates a running server
@@ -52,21 +54,22 @@ class Populator:
     # runs a test version that should work
     def test_setup(self):
         # run a server
-        s1 = mp.Process(target=self.server_process, args=(10000,10, 1))
+        s1 = mp.Process(target=self.server_process, args=(10000,30, 1))
         s1.start()
+        time.sleep(0.1)
 
         # spawn a client process
-        c1 = mp.Process(target=self.client_process, args=(10000,7))
+        c1 = mp.Process(target=self.client_process, args=(10000,15))
         c1.start()
 
         # spawn another client process
         time.sleep(1)
-        c2 = mp.Process(target=self.client_process, args=(10000,3))
+        c2 = mp.Process(target=self.client_process, args=(10000,10))
         c2.start()
 
         # wait until the client processes terminate
-        c1.join()
         c2.join()
+        c1.join()
         # then close the server
         s1.join()
 

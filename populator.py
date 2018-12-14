@@ -8,6 +8,7 @@
 #   subprocess.call('python3 ' + path_to_here + 'client.py')
 
 import multiprocessing as mp
+from distributor import Distributor
 from server import Server
 from client import Client
 import time
@@ -35,7 +36,7 @@ class Populator:
     # creates a running client
     def client_process(self, send_port, play_time, demo=False):
         # Connect to the host
-        c = Client(port=send_port, demo=demo, life_time=play_time) # perhaps argument port
+        c = Client(port=send_port, demo=demo, life_time=play_time)
         print("Created client process")
         # Receive input from servers
         c.start_receiving()
@@ -47,7 +48,7 @@ class Populator:
         # c.keep_alive = False # does not even work
         c.disconnect_server()
         time.sleep(5) #Need a timing here, to prevent too quick shutdown
-        print("removing thread")
+        print("Closing client process connected to server on port " + str(c.port))
 
 
     # creates a running server
@@ -55,11 +56,29 @@ class Populator:
         # Setup a new server
         s = Server(port=listen_port, life_time=run_time, check_alive=check_alive)
         print("Created server process")
+        # let the server handle all incoming messages
         s.read_ports()
+        print("Server closed on port " + str(listen_port))
+
+
+    # creates a running distributor
+    def distributor_process(self, listen_port, run_time):
+        d = Distributor(port=listen_port, life_time=run_time)
+        print("Created distributor process")
+        #TODO this dynamicly by sending messages between server and distributor
+        d.add_server(10000)
+        # let the distributor listen to all incoming messages until lifetime is up
+        d.handle_messages()
+        print("Distributor closed on port " + str(listen_port))
 
 
     # runs a test version that should work
     def test_setup(self):
+        # initialize the distributor
+        d = mp.Process(target=self.distributor_process, args=(11000, 40))
+        d.start()
+        time.sleep(0.1)
+
         # run a server
         s1 = mp.Process(target=self.server_process, args=(10000,30, 1))
         s1.start()

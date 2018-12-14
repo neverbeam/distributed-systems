@@ -8,8 +8,28 @@ class Distributor:
         # setup communication on this port
         self.own_port = port
         self.life_time = life_time
+        self.start_time = time.time()
         # list of active game servers
         self.servers = []
+        self.init_socket()
+
+    # initialize the socket to listen to on own_port
+    def init_socket(self)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Bind the socket to the port
+        server_address = ('localhost', self.own_port)
+        print('starting up on {} port {}'.format(*server_address))
+        self.sock.bind(server_address)
+        self.connections = [self.sock]
+        # allow 10 connections at the same time, so that they wait for eachother
+        self.sock.listen(10)
+
+    def power_down(self):
+        """ Close down the distributor. """
+        print ("Terminating and closing existing connections")
+        for connection in self.connections[1:]:
+            connection.close()
 
     # add a server port to the server list
     def add_server(self, server_port):
@@ -34,5 +54,19 @@ class Distributor:
 
 
     # run this as a daemon to receive player join requests
-    def handle_messages(self):
-        pass
+    def read_ports(self):
+        """ Read the sockets for new connections or player noticeses."""
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
+            try:
+                # Wait for a connection
+                readable, writable, errored = select.select(self.connections, [], [])
+
+                
+            # Handling stopping servers and closing connections.
+            except KeyboardInterrupt:
+                # self.power_down()
+                break
+
+        # always power down for right now
+        print("Server shutting down")
+        self.power_down()

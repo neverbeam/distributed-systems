@@ -101,8 +101,7 @@ class Client:
             else:
                 # check if the player should disconnect based on playtime
                 if self.life_time < (time.time() - self.start_time):
-                    # Let the server know you want tselfo disconnect
-                    self.keep_alive = False
+                    # Let the server know you want to disconnect
                     print ("DISONNECTING", self.myplayer.ID, "-----------------------------------------------------")
                     continue
 
@@ -160,7 +159,7 @@ class Client:
 
     def server_input(self, queue):
         """ Check for server input. """
-        while self.keep_alive:
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             readable, writable, errored = select.select([self.sock], [], [])
 
             data = self.sock.recv(64)

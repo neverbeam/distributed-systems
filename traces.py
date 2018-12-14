@@ -77,9 +77,15 @@ def wow_trace():
             play_times.append(logout_time - login_time)
     print(len(play_times))
     print(np.mean(play_times))
+    print(np.std(play_times))
     plt.plot(play_times)
     plt.xlabel('Player')
     plt.ylabel('Time')
+    plt.show()
+
+    plt.hist(play_times, 50, [min(play_times),max(play_times)])
+    plt.xlabel("Play time")
+    plt.ylabel('Number of occurences')
     plt.show()
 
     return play_times

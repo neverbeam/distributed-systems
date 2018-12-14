@@ -108,7 +108,7 @@ class Client:
 
                 else:
                     # This message should be created by an automated system (computer that plays game)
-                    time.sleep(2)
+                    time.sleep(1)
                     # NORMAL BEHAVIOR IS GOING TO BE HERE
                     # NOrmal order -> look for heals -> look for attacks -> MOve
                     # Look for heals in space around me

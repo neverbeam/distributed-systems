@@ -37,7 +37,6 @@ class Game:
         else:
             del self.players[player.ID]
             self.map[y][x] = "*"
-            # perhaps delete the instance here
 
     def update_grid(self, data):
         """Update my grid"""
@@ -56,11 +55,14 @@ class Game:
             player1 = self.players[data[1]]
             player2 = self.players[data[2]]
             player1.attack(player2)
+        # join;playerid;x;y;hp;ap
         elif data[0] == "join":
             player = Player(data[1], int(data[2]), int(data[3]), self)
             player.hp = int(data[4])
             player.ap = int(data[5])
             self.players[data[1]]=player
+        elif data[0] == "leave":
+            del self.players[data[1]]
         elif data[0] == "heal":
             player1 = self.players[data[1]]
             player2 = self.players[data[2]]
@@ -68,14 +70,3 @@ class Game:
 
         else:
             print("Not a valid command")
-
-
-
-
-
-    # what is the idea of this?
-    # def remove_player_id(self, ID):
-    #     for x in range(self.width):
-    #         for y in range(self.height):
-    #             if self.map[x][y] != "*" and self.map[x][y].id == ID:
-    #                 self.remove_user(x, y)

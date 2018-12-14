@@ -6,13 +6,13 @@ from Game import *
 
 class Server:
     def __init__(self, port=10000, life_time=None, check_alive=1):
-        self.start_up(port)
         # we could also place object on a 25x25 grid
         self.life_time = life_time
         self.start_time = time.time()
         self.check_alive = check_alive
         self.game = Game(self, 1,2,1)
         self.ID_connection = {}
+        self.start_up(port)
 
 
     def start_up(self, port=10000):
@@ -26,8 +26,15 @@ class Server:
         self.sock.bind(server_address)
         self.connections = [self.sock]
 
+        self.create_dragon()
+
         # Listen for incoming connections, # incomming connections
         self.sock.listen(3)
+
+    def create_dragon(self):
+        dragon = Dragon(self.game.ID, 15,15, self.game)
+        self.game.ID += 1
+        self.game.add_player(dragon)
 
     def power_down(self):
         """ Close down the server. """
@@ -78,6 +85,7 @@ class Server:
         self.game.remove_player(player)
         self.connections.remove(client)
         print("connection closed")
+        # LEt the other cleints know that someone has left
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""

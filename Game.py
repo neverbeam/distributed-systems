@@ -57,7 +57,7 @@ class Game:
             player2 = self.players[data[2]]
             player1.attack(player2)
         elif data[0] == "join":
-            player = Player(data[1], int(data[2]), int(data[3]), self.game)
+            player = Player(data[1], int(data[2]), int(data[3]), self)
             player.hp = int(data[4])
             player.ap = int(data[5])
             self.players[data[1]]=player

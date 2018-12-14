@@ -34,7 +34,7 @@ class User:
 class Dragon(User):
 
     def __init__(self, ID, x, y, game):
-        Character.__init__(self)
+        User.__init__(self, ID, x, y, game)
         self.type = "Dragon"
         self.max_hp = random.randint(50,100)
         self.ap = random.randint(5,20)
@@ -62,12 +62,12 @@ class Player(User):
             else:
                 self.y -= 1
         elif direction == "left":
-            if self.x == 0 or  self.game.map[self.y][self.x+1] != "*":
+            if self.x == 0 or  self.game.map[self.y][self.x-1] != "*":
                 print("Error: Invalid move! Cannot move left, player on the edge.")
             else:
                 self.x -= 1
         elif direction == "right":
-            if self.x == self.game.width-1 or self.game.map[self.y][self.x-1] != "*":
+            if self.x == self.game.width-1 or self.game.map[self.y][self.x+1] != "*":
                 print("Error: Invalid move! Cannot move right, player on the edge.")
             else:
                 self.x += 1

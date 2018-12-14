@@ -4,6 +4,7 @@ import time
 from threading import Thread
 from queue import Queue
 from Game import *
+import numpy as np
 
 class Client:
     def __init__(self, port=10000, demo=False, life_time=1000):
@@ -29,20 +30,26 @@ class Client:
         # type, ID, x, y, hp , ap,
         data = data.split(";")
         del data[-1]
+        highestID = 0
         for i in range(0, len(data), 6):
             playerdata = data[i:i+6]
-            if data[0] == "Player":
+            if playerdata[0] == "Player":
                 player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                 player.hp = int(data[5])
                 player.ap = int(data[4])
-            elif data[0] == "Dragon":
+
+                # The highest id is the new player, so me
+                if int(playerdata[1]) > highestID:
+                    highestID = int(playerdata[1])
+            elif playerdata[0] == "Dragon":
+                print("found a dragon")
                 player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                 player.hp = int(data[5])
                 player.ap = int(data[4])
 
             self.game.add_player(player)
 
-        self.myplayer = player # Is this in order?
+        self.myplayer = self.game.players[str(highestID)]
         print ( "succesfully received grid")
 
 
@@ -62,8 +69,7 @@ class Client:
     def disconnect_server(self):
         """ disconnect from the server"""
         # close the socket
-        print('closing socket')
-        time.sleep(0.000001) #Need a timing here, to prevent too quick shutdown
+        print('closing socket!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
         self.sock.close()
 
     def send_message(self, message):
@@ -82,15 +88,13 @@ class Client:
             # First process server dataself.
             while not self.queue.empty():
                 data = self.queue.get().decode('utf-8')
-                print ("given data", data)
                 if data.split(";")[1] != self.myplayer.ID:
                     print( "data from thread:", data)
                     self.game.update_grid(data)
                     # do something with row
                     self.queue.task_done()
 
-            # message input action;player;argument
-            message = "ERROR: no message"
+            message = ""
             if self.demo:
                 # Get a message from an actual human running the demo program
                 # THIS BLOCKS OTHER INPUT NOW!!
@@ -99,14 +103,57 @@ class Client:
                 # check if the player should disconnect based on playtime
                 if self.life_time < (time.time() - self.start_time):
                     # Let the server know you want tselfo disconnect
-                    message = ("DISCONNECTING PLS")
                     self.keep_alive = False
-                    print ("DISONNECTING -----------------------------------------------------")
+                    print ("DISONNECTING", self.myplayer.ID, "-----------------------------------------------------")
+                    continue
 
                 else:
                     # This message should be created by an automated system (computer that plays game)
                     time.sleep(2)
-                    message = "Debug message, time=" + str(time.time() - self.start_time)
+                    # NORMAL BEHAVIOR IS GOING TO BE HERE
+                    # NOrmal order -> look for heals -> look for attacks -> MOve
+                    # Look for heals in space around me
+                    playerlist = []
+                    dragonlist = []
+                    for object in self.game.players.values():
+                        if isinstance(object, Player) and self.myplayer.get_distance(object) < 5:
+                            playerlist.append(object)
+                        elif isinstance(object, Dragon):
+                            dragonlist.append(object)
+
+                    for player in playerlist:
+                        if player.hp < 0.5*player.max_hp and player != self.myplayer:
+                            message = "heal;{};{}".format(self.myplayer.ID, player.ID)
+                            break
+
+                    # Message unchanged , no healing done
+                    if message == "":
+                        for dragon in dragonlist:
+                            if self.myplayer.get_distance(dragon)<3:
+                                message = "attack;{};{}".format(self.myplayer.ID, dragon.ID)
+                                break
+                    # message unchanged, no dragon in place
+                    if message == "":
+                        # Find the closest dragon
+                        min_dragon_distance = 30
+                        for dragon in dragonlist:
+                            if self.myplayer.get_distance(dragon) < min_dragon_distance:
+                                min_dragon_distance = self.myplayer.get_distance(dragon)
+                                min_dragon = dragon
+
+                        # move to this dragon.
+                        directions = []
+                        if (min_dragon.x-self.myplayer.x)<0:
+                            directions.append("left")
+                        elif (min_dragon.x-self.myplayer.x)>0:
+                            directions.append("right")
+                        elif (min_dragon.y-self.myplayer.y)<0:
+                            directions.append("down")
+                        elif (min_dragon.y-self.myplayer.y)>0:
+                            directions.append("up")
+                        message = "move;{};{}".format(self.myplayer.ID, np.random.choice(directions)) ### What TODO if move is invalid?
+
+                    #message = "Debug message;, time=" + str(time.time() - self.start_time)
             self.game.update_grid(message)
             self.send_message(message)
 

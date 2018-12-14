@@ -11,6 +11,12 @@ import multiprocessing as mp
 from server import Server
 from client import Client
 import time
+import pandas
+import random
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+
 
 class Populator:
     def __init__(self, manual=False):
@@ -23,7 +29,8 @@ class Populator:
         if manual:
             self.get_input()
         else:
-            self.test_setup()
+            self.wow_setup(1)
+            # self.test_setup()
 
     # creates a running client
     def client_process(self, send_port, play_time, demo=False):
@@ -71,6 +78,37 @@ class Populator:
         c2.join()
         c1.join()
         # then close the server
+        s1.join()
+
+
+    # use the game trace to create clients with a given lifespan
+    def wow_setup(self, join_rate=2):
+        clients = []
+        populating = True
+        server_port = 10000
+        play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
+
+        # create a server setup
+        s1 = mp.Process(target=self.server_process, args=(10000,50, 1))
+        s1.start()
+
+        # start populating
+        while populating:
+            # get a random lifetime from the wow distribution
+            playtime = play_dist[random.randint(0, len(play_dist)-1)]
+            # create the client
+            c = mp.Process(target=self.client_process, args=(server_port,playtime))
+            c.start()
+            # wait the set amount of time between adding players
+            time.sleep(join_rate)
+            # TODO some termination thing here
+            if len(clients) > 10:
+                populating = False
+
+        # close all still opened connections
+        for c in clients:
+            c.join()
+        # close the servers
         s1.join()
 
 
@@ -168,6 +206,7 @@ class Populator:
             "kill [s/c + number]",
             "list"
         ]
+
 
 
 if __name__ == '__main__':

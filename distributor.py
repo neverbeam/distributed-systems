@@ -53,6 +53,7 @@ class Distributor:
     # run this as a daemon to receive player join requests
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
+        self.sock.settimeout(1)
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             try:
                 # open up a new socket to communicate with this messager
@@ -98,10 +99,14 @@ class Distributor:
                                     pass
                 
 
-            # Handling stopping servers and closing connections.
+            # Handling stopping distributor
             except KeyboardInterrupt:
                 # self.power_down()
                 break
+
+            # no message in set timeout, try again
+            except socket.timeout:
+                pass
 
         # always power down for right now
         print("Distributor shutting down")

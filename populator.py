@@ -30,9 +30,8 @@ class Populator:
         if manual:
             self.get_input()
         else:
-            # self.wow_setup(1)
+            #self.wow_setup(1)
             self.test_setup()
-
 
     # creates a running client
     def client_process(self, distr_port, play_time, demo=False):
@@ -48,8 +47,8 @@ class Populator:
         # # should be done in a function in client tho
         # c.keep_alive = False # does not even work
         c.disconnect_server()
-        time.sleep(5) #Need a timing here, to prevent too quick shutdown
-        print("Closing client process connected to server on port " + str(c.port))
+        time.sleep(2) #Need a timing here, to prevent too quick shutdown
+        print("Closing client process connected to server on port ") #+str(c.port))
 
 
     # creates a running server

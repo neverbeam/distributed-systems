@@ -40,7 +40,7 @@ class Server:
             s.sendall(send_mess)
 
     def create_dragon(self):
-        dragon = Dragon(self.game.ID, 15,15, self.game)
+        dragon = Dragon(str(self.game.ID), 15,15, self.game)
         self.game.ID += 1
         self.game.add_player(dragon)
 
@@ -82,17 +82,20 @@ class Server:
         self.send_grid(client)
 
         # Send data to other clients
-        data = "join;{};{};{};{};{}".format(player.ID, player.x, player.y, player.hp, player.ap)
+        data = "join;{};{};{};{};{};".format(player.ID, player.x, player.y, player.hp, player.ap)
         for clients in self.connections[1:]:
             clients.sendall(data.encode('utf-8'))
 
     def remove_client(self, client):
         """ Removing client if disconnection happens"""
         player = self.ID_connection[client]
+        playerID = player.ID
         self.game.remove_player(player)
         self.connections.remove(client)
         print("connection closed")
-        # LEt the other cleints know that someone has left
+        message = "leave;{};".format(playerID)
+        self.broadcast_clients(message.encode('utf-8'))
+
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
@@ -116,7 +119,7 @@ class Server:
                         # Else we have some data
                         else:
                             data = client.recv(64)
-                            print(data)
+                            print("SERVER RECEIVED", data)
                             if data:
                                 update = self.game.update_grid(data.decode('utf-8'))
                                 self.broadcast_clients(data)

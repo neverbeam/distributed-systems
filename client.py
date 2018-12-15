@@ -36,8 +36,8 @@ class Client:
             playerdata = data[i:i+6]
             if playerdata[0] == "Player":
                 player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
-                player.hp = int(data[5])
-                player.ap = int(data[4])
+                player.hp = int(data[4])
+                player.ap = int(data[5])
 
                 # The highest id is the new player, so me
                 if int(playerdata[1]) > highestID:
@@ -45,8 +45,8 @@ class Client:
             elif playerdata[0] == "Dragon":
                 print("found a dragon")
                 player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
-                player.hp = int(data[5])
-                player.ap = int(data[4])
+                player.hp = int(data[4])
+                player.ap = int(data[5])
 
             self.game.add_player(player)
 
@@ -129,11 +129,12 @@ class Client:
                 if self.life_time < (time.time() - self.start_time):
                     # Let the server know you want to disconnect
                     print ("DISONNECTING", self.myplayer.ID, "-----------------------------------------------------")
+                    self.keep_alive = 0
                     continue
 
                 else:
                     # This message should be created by an automated system (computer that plays game)
-                    time.sleep(2)
+                    time.sleep(1)
                     # NORMAL BEHAVIOR IS GOING TO BE HERE
                     # NOrmal order -> look for heals -> look for attacks -> MOve
                     # Look for heals in space around me
@@ -144,6 +145,9 @@ class Client:
                             playerlist.append(object)
                         elif isinstance(object, Dragon):
                             dragonlist.append(object)
+
+                    if not dragonlist:
+                        self.keep_alive = 0
 
                     for player in playerlist:
                         if player.hp < 0.5*player.max_hp and player != self.myplayer:
@@ -178,8 +182,8 @@ class Client:
                         message = "move;{};{};".format(self.myplayer.ID, np.random.choice(directions)) ### What TODO if move is invalid?
 
                     #message = "Debug message;, time=" + str(time.time() - self.start_time)
-            self.game.update_grid(message)
-            self.send_message(message)
+            if self.game.update_grid(message):
+                self.send_message(message)
 
 
 

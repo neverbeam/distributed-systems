@@ -7,6 +7,7 @@ from Game import *
 class Server:
     def __init__(self, port=10000, life_time=None, check_alive=1):
         # we could also place object on a 25x25 grid
+        self.port = port
         self.life_time = life_time
         self.start_time = time.time()
         self.check_alive = check_alive
@@ -22,7 +23,7 @@ class Server:
 
         # Bind the socket to the port
         server_address = ('localhost', port)
-        print('starting up on {} port {}'.format(*server_address))
+        print('Server starting up on {} port {}'.format(*server_address))
         self.sock.bind(server_address)
         self.connections = [self.sock]
 
@@ -31,6 +32,13 @@ class Server:
         # Listen for incoming connections, # incomming connections
         self.sock.listen(3)
 
+    def tell_distributor(self, distr_port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # send a message to the distributor
+            s.connect(('localhost', distr_port))
+            send_mess = ('NEW_SERVER|' + str(self.port)).encode('UTF-8')
+            s.sendall(send_mess)
+
     def create_dragon(self):
         dragon = Dragon(self.game.ID, 15,15, self.game)
         self.game.ID += 1
@@ -38,7 +46,6 @@ class Server:
 
     def power_down(self):
         """ Close down the server. """
-        print ("Terminating and closing existing connections")
         for connection in self.connections[1:]:
             connection.close()
 
@@ -111,8 +118,7 @@ class Server:
                             data = client.recv(64)
                             print(data)
                             if data:
-                                update = self.game.update_grid(data.decode('utf-8')
-)
+                                update = self.game.update_grid(data.decode('utf-8'))
                                 self.broadcast_clients(data)
                             else: #connection has closed
                                 self.remove_client(client)

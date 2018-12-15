@@ -14,22 +14,19 @@ class Distributor:
         self.init_socket()
 
     # initialize the socket to listen to on own_port
-    def init_socket(self)
+    def init_socket(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Bind the socket to the port
         server_address = ('localhost', self.own_port)
-        print('starting up on {} port {}'.format(*server_address))
+        print('Distributor starting up on {} port {}'.format(*server_address))
         self.sock.bind(server_address)
-        self.connections = [self.sock]
         # allow 10 connections at the same time, so that they wait for eachother
         self.sock.listen(10)
 
     def power_down(self):
         """ Close down the distributor. """
-        print ("Terminating and closing existing connections")
-        for connection in self.connections[1:]:
-            connection.close()
+        self.sock.close()
 
     # add a server port to the server list
     def add_server(self, server_port):
@@ -50,7 +47,7 @@ class Distributor:
         best_server[1] += 1 # add 1 to the servers player count
 
         # send the player to the best server
-        return best_server
+        return best_server[0]
 
 
     # run this as a daemon to receive player join requests
@@ -58,15 +55,54 @@ class Distributor:
         """ Read the sockets for new connections or player noticeses."""
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             try:
-                # Wait for a connection
-                readable, writable, errored = select.select(self.connections, [], [])
+                # open up a new socket to communicate with this messager
+                conn, addr = self.sock.accept()
+                with conn:
+                    while True:
+                        data = conn.recv(1024)
+                        if not data:
+                            break
+                        message = data.decode('utf-8')
 
+                        # check for either client connection or server stats message
+                        if message.startswith('CLIENT|'):
+                            print(self.servers)
+                            # get the best server for this player
+                            server_port = self.add_player()
+                            # send this server port to the client
+                            ret_mess = ('DIST|' + str(server_port)).encode('UTF-8')
+                            conn.sendall(ret_mess)
+                        elif message.startswith('SERVER|'):
+                            server_stats = message.split("|")
+                            if len(server_stats) < 2 or len(server_stats) > 2:
+                                # ill defined message
+                                pass
+                            else:
+                                try:
+                                    new_player_total = int(server_stats[1])
+                                    print(new_player_total)
+                                except ValueError:
+                                    # message was not an integer
+                                    pass
+                        elif message.startswith('NEW_SERVER|'):
+                            new_server_mess = message.split("|")
+                            if len(new_server_mess) < 2 or len(new_server_mess) > 2:
+                                # ill defined message
+                                pass
+                            else:
+                                try:
+                                    new_server_port = int(new_server_mess[1])
+                                    self.add_server(new_server_port)
+                                except ValueError:
+                                    # message was not an integer
+                                    pass
                 
+
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
                 # self.power_down()
                 break
 
         # always power down for right now
-        print("Server shutting down")
+        print("Distributor shutting down")
         self.power_down()

@@ -35,9 +35,9 @@ class Populator:
 
 
     # creates a running client
-    def client_process(self, send_port, play_time, demo=False):
+    def client_process(self, distr_port, play_time, demo=False):
         # Connect to the host
-        c = Client(port=send_port, demo=demo, life_time=play_time)
+        c = Client(distr_port=distr_port, demo=demo, life_time=play_time)
         print("Created client process")
         # Receive input from servers
         c.start_receiving()
@@ -53,10 +53,12 @@ class Populator:
 
 
     # creates a running server
-    def server_process(self, listen_port, run_time, check_alive):
+    def server_process(self, listen_port, distr_port, run_time, check_alive):
         # Setup a new server
         s = Server(port=listen_port, life_time=run_time, check_alive=check_alive)
-        print("Created server process")
+        print("Created server process " + str(listen_port))
+        # tell the distributor you exist
+        s.tell_distributor(distr_port)
         # let the server handle all incoming messages
         s.read_ports()
         print("Server closed on port " + str(listen_port))
@@ -65,40 +67,47 @@ class Populator:
     # creates a running distributor
     def distributor_process(self, listen_port, run_time):
         d = Distributor(port=listen_port, life_time=run_time)
-        print("Created distributor process")
-        #TODO this dynamicly by sending messages between server and distributor
-        d.add_server(10000)
+        print("Created distributor process " + str(listen_port))
         # let the distributor listen to all incoming messages until lifetime is up
-        d.handle_messages()
+        d.read_ports()
         print("Distributor closed on port " + str(listen_port))
 
 
     # runs a test version that should work
     def test_setup(self):
         # initialize the distributor
-        d = mp.Process(target=self.distributor_process, args=(11000, 40))
+        dp = 11000
+        d = mp.Process(target=self.distributor_process, args=(dp, 35))
         d.start()
         time.sleep(0.1)
 
         # run a server
-        s1 = mp.Process(target=self.server_process, args=(10000,30, 1))
+        s1 = mp.Process(target=self.server_process, args=(10000, dp, 30, 1))
         s1.start()
         time.sleep(0.1)
 
+        # second server
+        s2 = mp.Process(target=self.server_process, args=(10001, dp, 30, 1))
+        s2.start()
+        time.sleep(0.1)
+
         # spawn a client process
-        c1 = mp.Process(target=self.client_process, args=(10000,15))
+        c1 = mp.Process(target=self.client_process, args=(dp, 15))
         c1.start()
 
         # spawn another client process
         time.sleep(1)
-        c2 = mp.Process(target=self.client_process, args=(10000,10))
+        c2 = mp.Process(target=self.client_process, args=(dp, 10))
         c2.start()
 
         # wait until the client processes terminate
         c2.join()
         c1.join()
-        # then close the server
+        # then close the distributor
+        d.join()
+        # then close the servera
         s1.join()
+        s2.join()
 
 
     # use the game trace to create clients with a given lifespan

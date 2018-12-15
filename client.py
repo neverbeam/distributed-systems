@@ -7,12 +7,13 @@ from Game import *
 import numpy as np
 
 class Client:
-    def __init__(self, port=10000, demo=False, life_time=1000):
+    def __init__(self, distr_port=11000, demo=False, life_time=1000):
         self.demo = demo
         self.life_time = life_time
         self.start_time = time.time()
         self.keep_alive = True
-        self.sock = self.connect_server(port=port)
+        server_port = self.get_server(distr_port)
+        self.sock = self.connect_server(port=server_port)
         self.queue = Queue()
 
     def receive_grid(self, sock):
@@ -52,6 +53,31 @@ class Client:
         self.myplayer = self.game.players[str(highestID)]
         print ( "succesfully received grid")
 
+
+    # talk to the distributor to get a server port to connect to
+    def get_server(self, distr_port=11000):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # send a message to the distributor
+            s.connect(('localhost', distr_port))
+            s.sendall(b'CLIENT|')
+            # get a server port back from the distributor
+            data = s.recv(1024)
+            message = data.decode('utf-8')
+            if message.startswith('DIST|'):
+                dist_mess = message.split("|")
+                if len(dist_mess) < 2 or len(dist_mess) > 2:
+                    # ill defined message
+                    pass
+                else:
+                    try:
+                        server_port = int(dist_mess[1])
+                        return server_port
+                    except ValueError:
+                        # message was not an integer
+                        pass
+        # distributor did not respond, should not happen
+        print("ERROR: no distributor response")
+        return 0
 
     def connect_server(self, port=10000):
         """ Connect to the server. """

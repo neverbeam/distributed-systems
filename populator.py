@@ -47,8 +47,8 @@ class Populator:
         # # should be done in a function in client tho
         # c.keep_alive = False # does not even work
         c.disconnect_server()
-        time.sleep(5) #Need a timing here, to prevent too quick shutdown
-        print("Closing client process connected to server on port " + str(c.port))
+        time.sleep(2) #Need a timing here, to prevent too quick shutdown
+        print("Closing client process connected to server on port ") #+str(c.port))
 
 
     # creates a running server

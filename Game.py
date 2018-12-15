@@ -47,26 +47,40 @@ class Game:
         if data[0] == "move":
             player = self.players[data[1]]
             self.map[player.y][player.x] = "*"
-            player.move_player(data[2]) # Perhaps do some error checking here
-            self.map[player.y][player.x] = player
-            print("new coordinates", player.y, player.x)
+            if player.move_player(data[2]):
+                self.map[player.y][player.x] = player
+                print("new coordinates", player.y, player.x)
+                return 1
+            else:
+                self.map[player.y][player.x] = player
+                return 0
         # attack;player1;player2
         elif data[0] == "attack":
             player1 = self.players[data[1]]
             player2 = self.players[data[2]]
-            player1.attack(player2)
+            if player1.attack(player2):
+                return 1
+            else:
+                return 0
         # join;playerid;x;y;hp;ap
         elif data[0] == "join":
             player = Player(data[1], int(data[2]), int(data[3]), self)
             player.hp = int(data[4])
             player.ap = int(data[5])
             self.players[data[1]]=player
+            return 1
         elif data[0] == "leave":
-            del self.players[data[1]]
+            player = self.players[data[1]]
+            self.map[player.y][player.x] = "*"
+            del self.players[player.ID]
+            return 1
         elif data[0] == "heal":
             player1 = self.players[data[1]]
             player2 = self.players[data[2]]
-            player1.heal_player(player2)
+            if player1.heal_player(player2):
+                return 1
+            return 0
 
         else:
             print("Not a valid command")
+            return 0

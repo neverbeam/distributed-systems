@@ -20,11 +20,15 @@ class User:
 
         if distance > 2:
             print("Error: Attack not valid! Distance is greater than 2.")
+            return 0
         else:
+            print("Victim hp: {}".format(victim.hp))
             victim.hp -= self.ap
+            print("Victim hp: {}".format(victim.hp))
             if victim.hp <= 0:
-                print("Victim is dead! Remove victim from game.")
+                print("player {} is dead! Remove victim from game.".format(victim.ID))
                 self.game.remove_player(victim)
+            return 1
 
 
     def get_distance(self, victim):
@@ -54,23 +58,31 @@ class Player(User):
         if direction == "up":
             if self.y == self.game.height-1 or self.game.map[self.y+1][self.x] != "*":
                 print("Error: Invalid move! Cannot move up, player on the edge.")
+                return 0
             else:
                 self.y += 1
+                return 1
         elif direction == "down":
             if self.y == 0 or self.game.map[self.y-1][self.x] != "*":
                 print("Error: Invalid move! Cannot move down, player on the edge.")
+                return 0
             else:
                 self.y -= 1
+                return 1
         elif direction == "left":
             if self.x == 0 or  self.game.map[self.y][self.x-1] != "*":
                 print("Error: Invalid move! Cannot move left, player on the edge.")
+                return 0
             else:
                 self.x -= 1
+                return 1
         elif direction == "right":
             if self.x == self.game.width-1 or self.game.map[self.y][self.x+1] != "*":
                 print("Error: Invalid move! Cannot move right, player on the edge.")
+                return 0
             else:
                 self.x += 1
+                return 1
 
     def heal_player(self, player):
         """ heal another player. """
@@ -78,7 +90,9 @@ class Player(User):
 
         if distance > 5:
             print("Error: Healing failed! Distance is greater than 5.")
+            return 0
         else:
             heal_amount = min(self.ap, player.max_hp - player.hp)
             player.hp += heal_amount
             self.ap -= heal_amount
+            return 1

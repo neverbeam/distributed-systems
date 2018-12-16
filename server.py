@@ -20,6 +20,7 @@ class Server:
         self.ID_connection = {}
         self.queue = Queue()
         self.server_queue = Queue()
+        self.peer_queue = Queue()
         self.start_up(port, peer_port)
 
 
@@ -96,7 +97,7 @@ class Server:
                         # message was not an integer
                         pass
         # now start listening on the peer ports
-        self.start_receiving()
+        self.start_peer_receiving()
 
     def create_dragon(self):
         dragon = Dragon(str(self.game.ID), 15,15, self.game)
@@ -193,6 +194,12 @@ class Server:
         self.connections.remove(client)
         print("connection closed")
 
+    def remove_peer(self, peer, log):
+        """ Removing peer if shutdown happens"""
+        log.write("A peer left")
+        self.peer_connections.remove(peer)
+        print("Peer connection closed")
+
 
 
     def read_ports(self):
@@ -214,11 +221,19 @@ class Server:
 
                 # Check whether there are message from other servers
                 while not self.server_queue.empty():
-                    data = self.queue.get()
+                    data = self.server_queue.get()
+                    print("break here", data)
                     self.game.update_grid(data)
-                    self.broadcast_servers(data.encode('utf-8'))
-                    self.queue.task_done()
+                    # TODO use the timestamp of this message to synchronise moves
+                    # self.broadcast_servers(data.encode('utf-8'))
+                    self.server_queue.task_done()
                     log.write(data)
+
+                # update the peer connections for the main process
+                while not self.peer_queue.empty():
+                    peer_connection = self.peer_queue.get()
+                    self.peer_connections.append(peer_connection)
+                    self.peer_queue.task_done()
                     
                 if not readable and not writable and not errored:
                     # timeout is reached
@@ -259,7 +274,7 @@ class Server:
 
 
     # TODO THIS
-    def start_receiving(self):
+    def start_peer_receiving(self):
         """Thread for doing moves + send moves"""
         Thread(target=self.read_peer_ports, daemon = True).start()
 
@@ -281,12 +296,17 @@ class Server:
                             connection, peer_address = self.peer_sock.accept()
                             print ("Peer connected from {}".format(peer_address))
                             self.peer_connections.append(connection)
+                            new_peer_message = "NEW_PEER|" + str()
+                            self.peer_queue.put(connection)
                         # Else we have some data from a peer
                         else:
                             data = peer.recv(64)
-                            # PUtting data in queue so it can be read by server
-                            self.server_queue.put(data)
-                            print(self.peer_port, " received ", data)
+                            if data:
+                                # PUtting data in queue so it can be read by server
+                                print(self.peer_port, " received ", data)
+                                self.server_queue.put(data)
+                            else: #connection has closed
+                                self.remove_peer(peer, log)
 
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
@@ -299,8 +319,18 @@ class Server:
 
 
 if __name__ == '__main__':
-    s = Server()
+    import sys
+    client_port = int(sys.argv[1])
+    peer_port = int(sys.argv[2])
+    distr_port = int(sys.argv[3])
+    run_time = int(sys.argv[4])
+    check_alive = int(sys.argv[5])
+
+    # Setup a new server
+    s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive)
+    print("Created server process " + str(client_port))
+    # tell the distributor you exist
+    s.tell_distributor(distr_port)
+    # let the server handle all incoming messages
     s.read_ports()
-
-
-# Receive update  ->  update -> send back -> handle new connection
+    print("Server closed on port " + str(client_port))

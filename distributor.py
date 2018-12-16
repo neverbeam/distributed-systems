@@ -111,7 +111,6 @@ class Distributor:
                                             peer_server_port = server[1]
                                             ret_mess += '|' + str(peer_server_port)
                                     ret_mess = ret_mess.encode('UTF-8')
-                                    print(ret_mess)
                                     conn.sendall(ret_mess)
 
                                     # add the server to the lists
@@ -136,3 +135,14 @@ class Distributor:
         # always power down for right now
         print("Distributor shutting down")
         self.power_down()
+
+
+if __name__ == '__main__':
+    import sys
+    listen_port = int(sys.argv[1])
+    run_time = int(sys.argv[2])
+    d = Distributor(port=listen_port, life_time=run_time)
+    print("Created distributor process " + str(listen_port))
+    # let the distributor listen to all incoming messages until lifetime is up
+    d.read_ports()
+    print("Distributor closed on port " + str(listen_port))

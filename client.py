@@ -202,13 +202,19 @@ class Client:
 
 
 if __name__ == "__main__":
+    import sys
+    distr_port = int(sys.argv[1])
+    play_time = int(sys.argv[2])
+
     # Connect to the host
-    c = Client(demo=True) # perhaps argument port
-
-    c.start_receiving()
-
+    c = Client(distr_port=distr_port, demo=False, life_time=play_time)
+    print("Created client process")
     # Receive input from servers
+    c.start_receiving()
+    # let the client do moves until its playtime is up
     c.player_moves()
 
-    print('closing socket') # probably requires try except keyboard interrupt
+    # remove the player from the server
     c.disconnect_server()
+    time.sleep(2) #Need a timing here, to prevent too quick shutdown
+    print("Closing client process connected to server on port ") #+str(c.port))

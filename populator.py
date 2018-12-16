@@ -43,24 +43,22 @@ class Populator:
         # let the client do moves until its playtime is up
         c.player_moves()
 
-        # # right now just kill the client this way
-        # # should be done in a function in client tho
-        # c.keep_alive = False # does not even work
+        # remove the player from the server
         c.disconnect_server()
         time.sleep(2) #Need a timing here, to prevent too quick shutdown
         print("Closing client process connected to server on port ") #+str(c.port))
 
 
     # creates a running server
-    def server_process(self, listen_port, distr_port, run_time, check_alive):
+    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive):
         # Setup a new server
-        s = Server(port=listen_port, life_time=run_time, check_alive=check_alive)
-        print("Created server process " + str(listen_port))
+        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive)
+        print("Created server process " + str(client_port))
         # tell the distributor you exist
         s.tell_distributor(distr_port)
         # let the server handle all incoming messages
         s.read_ports()
-        print("Server closed on port " + str(listen_port))
+        print("Server closed on port " + str(client_port))
 
 
     # creates a running distributor
@@ -76,17 +74,17 @@ class Populator:
     def test_setup(self):
         # initialize the distributor
         dp = 11000
-        d = mp.Process(target=self.distributor_process, args=(dp, 35))
+        d = mp.Process(target=self.distributor_process, args=(dp, 23))
         d.start()
         time.sleep(0.1)
 
         # run a server
-        s1 = mp.Process(target=self.server_process, args=(10000, dp, 30, 1))
+        s1 = mp.Process(target=self.server_process, args=(10000, 10100, dp, 20, 1))
         s1.start()
         time.sleep(0.1)
 
         # second server
-        s2 = mp.Process(target=self.server_process, args=(10001, dp, 30, 1))
+        s2 = mp.Process(target=self.server_process, args=(10001, 10101, dp, 20, 1))
         s2.start()
         time.sleep(0.1)
 

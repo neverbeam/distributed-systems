@@ -13,6 +13,7 @@ class Client:
         self.life_time = life_time
         self.start_time = time.time()
         self.keep_alive = True
+        self.distr_port = distr_port
         server_port = self.get_server(distr_port)
         self.sock = self.connect_server(port=server_port)
         self.queue = Queue()
@@ -102,7 +103,11 @@ class Client:
         """ Send an message/action to the server"""
         # Send data
         print('sending {!r}'.format(message))
-        self.sock.sendall(message.encode('utf-8'))
+        try:
+            self.sock.sendall(message.encode('utf-8'))
+            return True
+        except BrokenPipeError:
+            return False
 
     def start_receiving(self):
         """Thread for doing moves + send moves"""
@@ -184,7 +189,14 @@ class Client:
 
                     #message = "Debug message;, time=" + str(time.time() - self.start_time)
             if self.game.update_grid(message):
-                self.send_message(message)
+                message_send = self.send_message(message)
+                if not message_send:
+                    print("Server went down, look for new one")
+                    # self.disconnect_server()
+                    server_port = self.get_server(self.distr_port)
+                    self.sock = self.connect_server(port=server_port)
+                    self.queue = Queue()
+                    self.start_receiving()
 
         self.disconnect_server()
 
@@ -193,11 +205,14 @@ class Client:
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             readable, writable, errored = select.select([self.sock], [], [])
 
-            data = self.sock.recv(64)
-            if data:
-                # update my update_grid
-                queue.put(data)
-                print ("message: incomming " + data.decode('utf-8'))
+            try: 
+                data = self.sock.recv(64)
+                if data:
+                    # update my update_grid
+                    queue.put(data)
+                    print ("message: incomming " + data.decode('utf-8'))
+            except ConnectionResetError:
+                break
 
 
 

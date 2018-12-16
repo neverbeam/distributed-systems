@@ -130,7 +130,7 @@ class Server:
 
     def peer_power_down(self):
         for peer_connection in self.peer_connections[1:]:
-            peer_connection.close()
+            peer_connection.shutdown(socket.SHUT_WR)
 
 
     def broadcast_clients(self, data):
@@ -222,7 +222,7 @@ class Server:
                 # Check whether there are message from other servers
                 while not self.server_queue.empty():
                     data = self.server_queue.get()
-                    print("break here", data)
+                    data = data.decode('utf-8')
                     self.game.update_grid(data)
                     # TODO use the timestamp of this message to synchronise moves
                     # self.broadcast_servers(data.encode('utf-8'))
@@ -280,6 +280,8 @@ class Server:
 
     def read_peer_ports(self):
         """ Read the sockets for new peer connections or peer game updates."""
+        log = open('logfile','w')
+
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             try:
                 # Wait for a connection
@@ -315,6 +317,7 @@ class Server:
 
         # always power down for right now
         print("Peer server shutting down")
+        log.close()
         self.peer_power_down()
 
 

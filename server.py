@@ -3,6 +3,8 @@ import select
 import random
 import time
 from Game import *
+from threading import Thread
+from queue import Queue
 
 class Server:
     def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1):
@@ -72,12 +74,15 @@ class Server:
                 for i in range(1, len(dist_mess)):
                     try:
                         peer_port = int(dist_mess[i])
-                        print(self.peer_port, peer_port)
+                        # <socket.socket fd=8, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 10000), raddr=('127.0.0.1', 40952)>
+                        # create a new socket for this peer
+                        peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         # Connect the socket to the port where the server is listening
                         peer_address = ('localhost', peer_port)
                         print('Peer connecting to {} port {}'.format(*peer_address))
                         # TODO NOW: this does not work because the peer_address is not yet added to this socket?
-                        # self.peer_connections.append(peer_address)
+                        peer_socket.connect(peer_address)
+                        self.peer_connections.append(peer_socket)
                         # TODO get the game from the last added peer
                         if i == len(dist_mess)-1:
                             pass
@@ -85,6 +90,8 @@ class Server:
                     except ValueError:
                         # message was not an integer
                         pass
+        # now start listening on the peer ports
+        self.start_receiving()
 
     def create_dragon(self):
         dragon = Dragon(str(self.game.ID), 15,15, self.game)
@@ -95,6 +102,8 @@ class Server:
         """ Close down the server. """
         for connection in self.connections[1:]:
             connection.close()
+    
+    def peer_power_down(self):
         for peer_connection in self.peer_connections[1:]:
             peer_connection.close()
 
@@ -168,7 +177,6 @@ class Server:
                         if client is self.sock:
                             connection, client_address = self.sock.accept()
                             print ("Someone connected from {}".format(client_address))
-                            print(connection)
                             self.create_player(connection)
                             self.connections.append(connection)
                         # Else we have some data
@@ -190,43 +198,43 @@ class Server:
         self.power_down()
 
 
+
     # TODO THIS
-    # def read_peer_ports(self):
-    #     """ Read the sockets for new peer connections or peer game updates."""
-    #     while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
-    #         try:
-    #             # Wait for a connection
-    #             readable, writable, errored = select.select(self.peer_connections, [], [], self.check_alive)
-    #             if not readable and not writable and not errored:
-    #                 # timeout is reached
-    #                 pass
+    def start_receiving(self):
+        """Thread for doing moves + send moves"""
+        Thread(target=self.read_peer_ports, args=(), daemon = True).start()
 
-    #             else:
-    #                 # got a message
-    #                 for peer in readable:
-    #                     # If server side, then new connection
-    #                     if peer is self.peer_sock:
-    #                         connection, client_address = self.sock.accept()
-    #                         print ("Peer connected from {}".format(client_address))
-    #                         self.create_player(connection)
-    #                         self.connections.append(connection)
-    #                     # Else we have some data
-    #                     else:
-    #                         data = client.recv(64)
-    #                         print("SERVER RECEIVED", data)
-    #                         if data:
-    #                             update = self.game.update_grid(data.decode('utf-8'))
-    #                             self.broadcast_clients(data)
-    #                         else: #connection has closed
-    #                             self.remove_client(client)
-    #         # Handling stopping servers and closing connections.
-    #         except KeyboardInterrupt:
-    #             # self.power_down()
-    #             break
+    def read_peer_ports(self):
+        """ Read the sockets for new peer connections or peer game updates."""
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
+            try:
+                # Wait for a connection
+                readable, writable, errored = select.select(self.peer_connections, [], [], self.check_alive)
+                if not readable and not writable and not errored:
+                    # timeout is reached
+                    pass
 
-    #     # always power down for right now
-    #     print("Server shutting down")
-    #     self.power_down()
+                else:
+                    # got a message
+                    for peer in readable:
+                        # If server side, then new peer connection
+                        if peer is self.peer_sock:
+                            connection, peer_address = self.peer_sock.accept()
+                            print ("Peer connected from {}".format(peer_address))
+                            self.peer_connections.append(connection)
+                        # Else we have some data from a peer
+                        else:
+                            data = peer.recv(64)
+                            print(self.peer_port, " received ", data)
+
+            # Handling stopping servers and closing connections.
+            except KeyboardInterrupt:
+                # self.power_down()
+                break
+
+        # always power down for right now
+        print("Peer server shutting down")
+        self.peer_power_down()
 
 
 if __name__ == '__main__':

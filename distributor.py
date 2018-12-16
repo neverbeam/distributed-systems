@@ -67,7 +67,6 @@ class Distributor:
 
                         # check for client connection to send him to a server
                         if message.startswith('CLIENT|'):
-                            print(self.servers)
                             # get the best server for this player
                             server_port = self.add_player()
                             # send this server port to the client
@@ -84,7 +83,7 @@ class Distributor:
                                 try:
                                     # set the given player total
                                     new_player_total = int(server_stats[1])
-                                    print(new_player_total)
+                                    print("Updated player total", new_player_total)
                                 except ValueError:
                                     # message was not an integer
                                     pass
@@ -112,6 +111,7 @@ class Distributor:
                                             peer_server_port = server[1]
                                             ret_mess += '|' + str(peer_server_port)
                                     ret_mess = ret_mess.encode('UTF-8')
+                                    print(ret_mess)
                                     conn.sendall(ret_mess)
 
                                     # add the server to the lists

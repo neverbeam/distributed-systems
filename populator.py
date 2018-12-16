@@ -78,15 +78,14 @@ class Populator:
         d.start()
         time.sleep(0.1)
 
-        # run a server
-        s1 = mp.Process(target=self.server_process, args=(10000, 10100, dp, 20, 1))
-        s1.start()
-        time.sleep(0.1)
-
-        # second server
-        s2 = mp.Process(target=self.server_process, args=(10001, 10101, dp, 20, 1))
-        s2.start()
-        time.sleep(0.1)
+        servers = []
+        num_servers = 2
+        for i in range(num_servers):
+            # run a server
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1))
+            s.start()
+            servers.append(s)
+            time.sleep(0.1)
 
         # spawn a client process
         c1 = mp.Process(target=self.client_process, args=(dp, 15))
@@ -100,11 +99,11 @@ class Populator:
         # wait until the client processes terminate
         c2.join()
         c1.join()
+        # then close the servers
+        for s in servers:
+            s.join()
         # then close the distributor
         d.join()
-        # then close the servera
-        s1.join()
-        s2.join()
 
 
     # use the game trace to create clients with a given lifespan

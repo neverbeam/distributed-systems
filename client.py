@@ -86,7 +86,7 @@ class Client:
 
         # Connect the socket to the port where the server is listening
         server_address = ('localhost', port)
-        print('connecting to {} port {}'.format(*server_address))
+        print('Client connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
         self.receive_grid(sock)
 

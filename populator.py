@@ -34,70 +34,76 @@ class Populator:
             self.test_setup()
 
     # creates a running client
-    def client_process(self, send_port, play_time, demo=False):
+    def client_process(self, distr_port, play_time, demo=False):
         # Connect to the host
-        c = Client(port=send_port, demo=demo, life_time=play_time)
+        c = Client(distr_port=distr_port, demo=demo, life_time=play_time)
         print("Created client process")
         # Receive input from servers
         c.start_receiving()
         # let the client do moves until its playtime is up
         c.player_moves()
 
-        # # right now just kill the client this way
-        # # should be done in a function in client tho
-        # c.keep_alive = False # does not even work
+        # remove the player from the server
         c.disconnect_server()
         time.sleep(2) #Need a timing here, to prevent too quick shutdown
         print("Closing client process connected to server on port ") #+str(c.port))
 
 
     # creates a running server
-    def server_process(self, listen_port, run_time, check_alive):
+    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive):
         # Setup a new server
-        s = Server(port=listen_port, life_time=run_time, check_alive=check_alive)
-        print("Created server process")
+        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive)
+        print("Created server process " + str(client_port))
+        # tell the distributor you exist
+        s.tell_distributor(distr_port)
         # let the server handle all incoming messages
         s.read_ports()
-        print("Server closed on port " + str(listen_port))
+        print("Server closed on port " + str(client_port))
 
 
     # creates a running distributor
     def distributor_process(self, listen_port, run_time):
         d = Distributor(port=listen_port, life_time=run_time)
-        print("Created distributor process")
-        #TODO this dynamicly by sending messages between server and distributor
-        d.add_server(10000)
+        print("Created distributor process " + str(listen_port))
         # let the distributor listen to all incoming messages until lifetime is up
-        d.handle_messages()
+        d.read_ports()
         print("Distributor closed on port " + str(listen_port))
 
 
     # runs a test version that should work
     def test_setup(self):
         # initialize the distributor
-        d = mp.Process(target=self.distributor_process, args=(11000, 35))
+        dp = 11000
+        d = mp.Process(target=self.distributor_process, args=(dp, 23))
         d.start()
         time.sleep(0.1)
 
-        # run a server
-        s1 = mp.Process(target=self.server_process, args=(10000,30, 1))
-        s1.start()
-        time.sleep(0.1)
+        servers = []
+        num_servers = 2
+        for i in range(num_servers):
+            # run a server
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1))
+            s.start()
+            servers.append(s)
+            time.sleep(0.1)
 
         # spawn a client process
-        c1 = mp.Process(target=self.client_process, args=(10000,15))
+        c1 = mp.Process(target=self.client_process, args=(dp, 15))
         c1.start()
 
         # spawn another client process
         time.sleep(1)
-        c2 = mp.Process(target=self.client_process, args=(10000,10))
+        c2 = mp.Process(target=self.client_process, args=(dp, 10))
         c2.start()
 
         # wait until the client processes terminate
         c2.join()
         c1.join()
-        # then close the server
-        s1.join()
+        # then close the servers
+        for s in servers:
+            s.join()
+        # then close the distributor
+        d.join()
 
 
     # use the game trace to create clients with a given lifespan

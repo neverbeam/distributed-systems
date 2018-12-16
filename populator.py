@@ -75,7 +75,7 @@ class Populator:
     # runs a test version that should work
     def test_setup(self):
         # initialize the distributor
-        d = mp.Process(target=self.distributor_process, args=(11000, 40))
+        d = mp.Process(target=self.distributor_process, args=(11000, 35))
         d.start()
         time.sleep(0.1)
 

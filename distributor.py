@@ -14,7 +14,7 @@ class Distributor:
         self.init_socket()
 
     # initialize the socket to listen to on own_port
-    def init_socket(self)
+    def init_socket(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Bind the socket to the port
@@ -61,7 +61,7 @@ class Distributor:
                 # Wait for a connection
                 readable, writable, errored = select.select(self.connections, [], [])
 
-                
+
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
                 # self.power_down()

@@ -194,9 +194,9 @@ class Server:
         self.connections.remove(client)
         print("connection closed")
 
-    def remove_peer(self, peer, log):
+    def remove_peer(self, peer):
         """ Removing peer if shutdown happens"""
-        log.write("A peer left")
+        #log.write("A peer left")
         self.peer_connections.remove(peer)
         print("Peer connection closed")
 
@@ -234,7 +234,7 @@ class Server:
                     peer_connection = self.peer_queue.get()
                     self.peer_connections.append(peer_connection)
                     self.peer_queue.task_done()
-                    
+
                 if not readable and not writable and not errored:
                     # timeout is reached
                     print("No message received")
@@ -306,7 +306,7 @@ class Server:
                                 print(self.peer_port, " received ", data)
                                 self.server_queue.put(data)
                             else: #connection has closed
-                                self.remove_peer(peer, log)
+                                self.remove_peer(peer)
 
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:

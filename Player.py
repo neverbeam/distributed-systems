@@ -13,21 +13,23 @@ class User:
         self.x = x
         self.y =  y
         self.game = game
+        self.maxrange = 2
 
     def attack(self, victim):
         """ Attack another player and remove if they have no hp left."""
         distance = self.get_distance(victim)
 
-        if distance > 2:
+        if distance > self.maxrange:
             print("Error: Attack not valid! Distance is greater than 2.")
             return 0
         else:
-            print("Victim hp: {}".format(victim.hp))
+            print("Victim {} hp: {}".format(victim.ID, victim.hp))
             victim.hp -= self.ap
-            print("Victim hp: {}".format(victim.hp))
+            print("Victim {} hp: {}".format(victim.ID, victim.hp))
             if victim.hp <= 0:
                 print("player {} is dead! Remove victim from game.".format(victim.ID))
                 self.game.remove_player(victim)
+                self.game.disconnect_player(victim)
             return 1
 
 
@@ -43,6 +45,7 @@ class Dragon(User):
         self.max_hp = random.randint(50,100)
         self.ap = random.randint(5,20)
         self.hp = self.max_hp
+        self.maxrange = 5
 
 class Player(User):
 

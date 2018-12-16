@@ -3,6 +3,10 @@ import select
 import random
 import time
 from Game import *
+from queue import Queue
+from threading import Thread
+
+
 
 class Server:
     def __init__(self, port=10000, life_time=None, check_alive=1):
@@ -12,7 +16,9 @@ class Server:
         self.check_alive = check_alive
         self.game = Game(self, 1,2,1)
         self.ID_connection = {}
+        self.queue = Queue()
         self.start_up(port)
+
 
 
     def start_up(self, port=10000):
@@ -26,6 +32,7 @@ class Server:
         self.sock.bind(server_address)
         self.connections = [self.sock]
 
+        self.dragonlist = []
         self.create_dragon()
 
         # Listen for incoming connections, # incomming connections
@@ -35,6 +42,25 @@ class Server:
         dragon = Dragon(str(self.game.ID), 15,15, self.game)
         self.game.ID += 1
         self.game.add_player(dragon)
+        self.dragonlist.append(dragon)
+        Thread(target=self.run_dragon, args=(self.queue,), daemon = True).start()
+
+    def run_dragon(self, queue):
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
+            time.sleep(2)
+            # Look for player around me
+            for dragon in self.dragonlist:
+                playerlist = []
+                for object in self.game.players.values():
+                    if isinstance(object, Player) and dragon.get_distance(object) < 5:
+                        playerlist.append(object)
+
+                # randomly select one of the players
+                if playerlist:
+                    message = "attack;{};{};".format(dragon.ID, random.choice(playerlist).ID)
+                    queue.put(message)
+
+
 
     def power_down(self):
         """ Close down the server. """
@@ -79,23 +105,39 @@ class Server:
         for clients in self.connections[1:]:
             clients.sendall(data.encode('utf-8'))
 
-    def remove_client(self, client):
+    def remove_client(self, client, log):
         """ Removing client if disconnection happens"""
         player = self.ID_connection[client]
         playerID = player.ID
-        self.game.remove_player(player)
+        message = "leave;{};".format(playerID)
+
+        if player.hp > 0:
+            self.game.remove_player(player)
+            self.broadcast_clients(message.encode('utf-8'))
+
+        log.write(message + "\n")
         self.connections.remove(client)
         print("connection closed")
-        message = "leave;{};".format(playerID)
-        self.broadcast_clients(message.encode('utf-8'))
+
 
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
+        log = open('logfile','w')
+
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             try:
                 # Wait for a connection
                 readable, writable, errored = select.select(self.connections, [], [], self.check_alive)
+
+                # See if a dragon move needs to be made.
+                while not self.queue.empty():
+                    data = self.queue.get()
+                    self.game.update_grid(data)
+                    self.broadcast_clients(data.encode('utf-8'))
+                    self.queue.task_done()
+                    log.write(data)
+
                 if not readable and not writable and not errored:
                     # timeout is reached
                     print("No message received")
@@ -107,6 +149,7 @@ class Server:
                         if client is self.sock:
                             connection, client_address = self.sock.accept()
                             print ("Someone connected from {}".format(client_address))
+                            log.write("Someone connected from {}\n".format(client_address))
                             self.create_player(connection)
                             self.connections.append(connection)
                         # Else we have some data
@@ -114,11 +157,12 @@ class Server:
                             data = client.recv(64)
                             print("SERVER RECEIVED", data)
                             if data:
-                                update = self.game.update_grid(data.decode('utf-8')
-)
-                                self.broadcast_clients(data)
+                                # Check whether update grid was succesfull
+                                if self.game.update_grid(data.decode('utf-8')):
+                                    self.broadcast_clients(data)
+                                    log.write(data.decode('utf-8') + "\n")
                             else: #connection has closed
-                                self.remove_client(client)
+                                self.remove_client(client, log)
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
                 # self.power_down()
@@ -126,6 +170,7 @@ class Server:
 
         # always power down for right now
         print("Server shutting down")
+        log.close()
         self.power_down()
 
 

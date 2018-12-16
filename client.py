@@ -3,7 +3,8 @@ import select
 import time
 from threading import Thread
 from queue import Queue
-from Game import *
+import Game
+from Player import *
 import numpy as np
 
 class Client:
@@ -17,7 +18,7 @@ class Client:
 
     def receive_grid(self, sock):
         """ Receive the current state of the grid from the server. """
-        self.game = Game(self)
+        self.game = Game.Game(self)
         data = ""
         # Keep receiving until an end has been send. TCP gives in order arrival
         while True:
@@ -35,8 +36,8 @@ class Client:
             playerdata = data[i:i+6]
             if playerdata[0] == "Player":
                 player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
-                player.hp = int(data[4])
-                player.ap = int(data[5])
+                player.hp = int(playerdata[4])
+                player.ap = int(playerdata[5])
 
                 # The highest id is the new player, so me
                 if int(playerdata[1]) > highestID:
@@ -44,8 +45,8 @@ class Client:
             elif playerdata[0] == "Dragon":
                 print("found a dragon")
                 player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
-                player.hp = int(data[4])
-                player.ap = int(data[5])
+                player.hp = int(playerdata[4])
+                player.ap = int(playerdata[5])
 
             self.game.add_player(player)
 
@@ -102,7 +103,7 @@ class Client:
                 # check if the player should disconnect based on playtime
                 if self.life_time < (time.time() - self.start_time):
                     # Let the server know you want to disconnect
-                    print ("DISONNECTING", self.myplayer.ID, "-----------------------------------------------------")
+                    print ("DISCONNECTING", self.myplayer.ID, "-----------------------------------------------------")
                     self.keep_alive = 0
                     continue
 
@@ -159,7 +160,7 @@ class Client:
             if self.game.update_grid(message):
                 self.send_message(message)
 
-
+        self.disconnect_server()
 
     def server_input(self, queue):
         """ Check for server input. """

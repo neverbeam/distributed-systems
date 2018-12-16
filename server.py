@@ -19,6 +19,7 @@ class Server:
         self.game = Game(self, 1,2,1)
         self.ID_connection = {}
         self.queue = Queue()
+        self.server_queue = Queue()
         self.start_up(port, peer_port)
 
 
@@ -137,6 +138,12 @@ class Server:
         for clients in self.connections[1:]:
             clients.sendall(data)
 
+    def broadcast_servers(self, data):
+        """ Broadcast the message to other servers"""
+        # Send data to other clients
+        for server in self.peer_connections[1:]:
+            server.sendall(data)
+
     def broadcast_peers(self, data):
         """ Broadcast the message from 1 client to other clients"""
         # Send data to other clients
@@ -205,6 +212,14 @@ class Server:
                     self.queue.task_done()
                     log.write(data)
 
+                # Check whether there are message from other servers
+                while not self.server_queue.empty():
+                    data = self.queue.get()
+                    self.game.update_grid(data)
+                    self.broadcast_servers(data.encode('utf-8'))
+                    self.queue.task_done()
+                    log.write(data)
+                    
                 if not readable and not writable and not errored:
                     # timeout is reached
                     print("No message received")
@@ -227,6 +242,7 @@ class Server:
                                 # Check whether update grid was succesfull
                                 if self.game.update_grid(data.decode('utf-8')):
                                     self.broadcast_clients(data)
+                                    self.broadcast_servers(data)
                                     log.write(data.decode('utf-8') + "\n")
                             else: #connection has closed
                                 self.remove_client(client, log)
@@ -245,7 +261,7 @@ class Server:
     # TODO THIS
     def start_receiving(self):
         """Thread for doing moves + send moves"""
-        Thread(target=self.read_peer_ports, args=(), daemon = True).start()
+        Thread(target=self.read_peer_ports, daemon = True).start()
 
     def read_peer_ports(self):
         """ Read the sockets for new peer connections or peer game updates."""
@@ -268,6 +284,8 @@ class Server:
                         # Else we have some data from a peer
                         else:
                             data = peer.recv(64)
+                            # PUtting data in queue so it can be read by server
+                            self.server_queue.put(data)
                             print(self.peer_port, " received ", data)
 
             # Handling stopping servers and closing connections.

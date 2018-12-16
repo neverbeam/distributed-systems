@@ -57,11 +57,13 @@ class Server:
 
     # tell the distributor you exist, and get back list of your peers, and connect with peers
     def tell_distributor(self, distr_port):
-        # create temporary socket for single communication with distributor
+        self.distr_port = distr_port
+
+        # create socket for single communication with distributor
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # send a message to the distributor
             send_mess = ('NEW_SERVER|' + str(self.port) + '|' + str(self.peer_port)).encode('UTF-8')
-            s.connect(('localhost', distr_port))
+            s.connect(('localhost', self.distr_port))
             s.sendall(send_mess)
             # get a peer server port back from the distributor
             data = s.recv(1024)
@@ -80,7 +82,6 @@ class Server:
                 for i in range(1, len(dist_mess)):
                     try:
                         peer_port = int(dist_mess[i])
-                        # <socket.socket fd=8, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('127.0.0.1', 10000), raddr=('127.0.0.1', 40952)>
                         # create a new socket for this peer
                         peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         # Connect the socket to the port where the server is listening
@@ -127,11 +128,18 @@ class Server:
         """ Close down the server. """
         for connection in self.connections[1:]:
             connection.close()
+        # tell the distributor youre stopping
+        # create socket for single communication with distributor
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # send a message to the distributor
+            send_mess = ('OUT_SERVER|' + str(self.port)).encode('UTF-8')
+            s.connect(('localhost', self.distr_port))
+            s.sendall(send_mess)
 
     def peer_power_down(self):
+        # close peer connections
         for peer_connection in self.peer_connections[1:]:
             peer_connection.shutdown(socket.SHUT_WR)
-
 
     def broadcast_clients(self, data):
         """ Broadcast the message from 1 client to other clients"""
@@ -236,7 +244,13 @@ class Server:
                     self.peer_queue.task_done()
                     
                 if not readable and not writable and not errored:
-                    # timeout is reached
+                    # timeout is reached, just send player total to the distributor
+                    # create socket for single communication with distributor
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        # send a message to the distributor
+                        send_mess = ('SERVER|' + str(len(self.connections)-1)).encode('UTF-8')
+                        s.connect(('localhost', self.distr_port))
+                        s.sendall(send_mess)
                     print("No message received")
 
                 else:

@@ -34,6 +34,13 @@ class Distributor:
         server = [server_port, peer_port, 0]
         self.servers.append(server)
 
+    # remove a server from the server list
+    def remove_server(self, server_port):
+        for i in range(len(self.servers)):
+            if self.servers[i][0] == server_port:
+                self.servers.pop(i)
+                break
+
     # look for the best server port for a new player
     def add_player(self):
         best_server = None
@@ -67,11 +74,15 @@ class Distributor:
 
                         # check for client connection to send him to a server
                         if message.startswith('CLIENT|'):
-                            # get the best server for this player
-                            server_port = self.add_player()
-                            # send this server port to the client
-                            ret_mess = ('DIST|' + str(server_port)).encode('UTF-8')
-                            conn.sendall(ret_mess)
+                            if len(self.servers) > 0:
+                                # get the best server for this player
+                                server_port = self.add_player()
+                                # send this server port to the client
+                                ret_mess = ('DIST|' + str(server_port)).encode('UTF-8')
+                                conn.sendall(ret_mess)
+                            else: 
+                                # TODO start up a server
+                                conn.sendall(b'NO_SERVER')
 
                         # check for server message about its player total
                         elif message.startswith('SERVER|'):
@@ -115,6 +126,22 @@ class Distributor:
 
                                     # add the server to the lists
                                     self.add_server(new_server_port, new_server_peer_port)
+                                except ValueError:
+                                    # message was not an integer
+                                    pass
+
+                        # check for server message about him stopping
+                        elif message.startswith('OUT_SERVER|'):
+                            server_stats = message.split("|")
+                            if len(server_stats) != 2:
+                                # ill defined message
+                                pass
+                            else:
+                                try:
+                                    # remove the server
+                                    server_port = int(server_stats[1])
+                                    self.remove_server(server_port)
+                                    print("Distributor removed server, updated = ", self.servers)
                                 except ValueError:
                                     # message was not an integer
                                     pass

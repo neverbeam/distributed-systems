@@ -9,14 +9,14 @@ from threading import Thread
 
 
 class Server:
-    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1):
+    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1, ID=0):
         # we could also place object on a 25x25 grid
         self.port = port
         self.peer_port = peer_port
         self.life_time = life_time
         self.start_time = time.time()
         self.check_alive = check_alive
-        self.game = Game(self, 1,2,1)
+        self.game = Game(self, ID,2,1)
         self.ID_connection = {}
         self.queue = Queue()
         self.server_queue = Queue()
@@ -153,12 +153,6 @@ class Server:
         for server in self.peer_connections[1:]:
             server.sendall(data)
 
-    def broadcast_peers(self, data):
-        """ Broadcast the message from 1 client to other clients"""
-        # Send data to other clients
-        for peer in self.peer_connections[1:]:
-            peer.sendall(data)
-
     def send_grid(self, client):
         """Send the grid to new players or new server"""
 
@@ -240,7 +234,8 @@ class Server:
                 # update the peer connections for the main process
                 while not self.peer_queue.empty():
                     peer_connection = self.peer_queue.get()
-                    self.peer_connections.append(peer_connection)
+                    if peer_connection not in self.peer_connections:
+                        self.peer_connections.append(peer_connection)
                     self.peer_queue.task_done()
 
                 if not readable and not writable and not errored:
@@ -271,6 +266,7 @@ class Server:
                                 # Check whether update grid was succesfull
                                 if self.game.update_grid(data.decode('utf-8')):
                                     self.broadcast_clients(data)
+                                    #print ("TRYOUUTTT0", data, data+b"end of move" )
                                     self.broadcast_servers(data)
                                     log.write(data.decode('utf-8') + "\n")
                             else: #connection has closed
@@ -311,7 +307,8 @@ class Server:
                         if peer is self.peer_sock:
                             connection, peer_address = self.peer_sock.accept()
                             print ("Peer connected from {}".format(peer_address))
-                            self.peer_connections.append(connection)
+                            if connection not in self.peer_connections:
+                                self.peer_connections.append(connection)
                             new_peer_message = "NEW_PEER|" + str()
                             self.peer_queue.put(connection)
                         # Else we have some data from a peer

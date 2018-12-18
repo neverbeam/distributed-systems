@@ -8,12 +8,15 @@ from Player import *
 import numpy as np
 
 class Client:
-    def __init__(self, distr_port=11000, demo=False, life_time=1000):
+    def __init__(self, distr_port=11000, demo=False, life_time=1000, lat=1, lng=1):
         self.demo = demo
         self.life_time = life_time
         self.start_time = time.time()
         self.keep_alive = True
         self.distr_port = distr_port
+        self.lat = lat
+        self.lng = lng
+        self.latency = 0
         server_port = self.get_server(distr_port)
         self.sock = self.connect_server(port=server_port)
         self.queue = Queue()
@@ -61,18 +64,24 @@ class Client:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # send a message to the distributor
             s.connect(('localhost', distr_port))
-            s.sendall(b'CLIENT|')
+            lat_str = "{:.4f}".format(self.lat)
+            lng_str = "{:.4f}".format(self.lng)
+            send_data = "CLIENT|" + lat_str + ";" + lng_str
+            s.sendall(send_data.encode('utf-8'))
             # get a server port back from the distributor
             data = s.recv(1024)
             message = data.decode('utf-8')
             if message.startswith('DIST|'):
                 dist_mess = message.split("|")
-                if len(dist_mess) < 2 or len(dist_mess) > 2:
+                if len(dist_mess) != 3:
                     # ill defined message
                     pass
                 else:
                     try:
+                        # get the game server and latency from the distributor
                         server_port = int(dist_mess[1])
+                        latency = float(dist_mess[2])
+                        self.latency = latency
                         return server_port
                     except ValueError:
                         # message was not an integer
@@ -104,6 +113,9 @@ class Client:
         # Send data
         print('sending {!r}'.format(message))
         try:
+            # simulate latency
+            time.sleep(self.latency)
+            # then send the message
             self.sock.sendall(message.encode('utf-8'))
             return True
         except BrokenPipeError:
@@ -134,7 +146,7 @@ class Client:
                 # check if the player should disconnect based on playtime
                 if self.life_time < (time.time() - self.start_time):
                     # Let the server know you want to disconnect
-                    print ("DISCONNECTING", self.myplayer.ID, "-----------------------------------------------------")
+                    print ("DISCONNECTING player", self.myplayer.ID)
                     self.keep_alive = 0
                     continue
 
@@ -208,6 +220,8 @@ class Client:
             try: 
                 data = self.sock.recv(64)
                 if data:
+                    # simulate latency
+                    time.sleep(self.latency)
                     # update my update_grid
                     queue.put(data)
                     print ("message: incomming " + data.decode('utf-8'))
@@ -220,9 +234,11 @@ if __name__ == "__main__":
     import sys
     distr_port = int(sys.argv[1])
     play_time = int(sys.argv[2])
+    lat = int(sys.argv[3])
+    lng = int(sys.argv[4])
 
     # Connect to the host
-    c = Client(distr_port=distr_port, demo=False, life_time=play_time)
+    c = Client(distr_port=distr_port, demo=False, life_time=play_time, lat=lat, lng=lng)
     print("Created client process")
     # Receive input from servers
     c.start_receiving()

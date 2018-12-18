@@ -31,12 +31,13 @@ class Populator:
             self.get_input()
         else:
             #self.wow_setup(1)
-            self.test_setup()
+            # self.test_setup_2s_2c()
+            self.test_setup_geo(3, 100)
 
     # creates a running client
-    def client_process(self, distr_port, play_time, demo=False):
+    def client_process(self, distr_port, play_time, lat, lng, demo=False):
         # Connect to the host
-        c = Client(distr_port=distr_port, demo=demo, life_time=play_time)
+        c = Client(distr_port=distr_port, demo=demo, life_time=play_time, lat=lat, lng=lng)
         print("Created client process")
         # Receive input from servers
         c.start_receiving()
@@ -50,9 +51,9 @@ class Populator:
 
 
     # creates a running server
-    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive):
+    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive, lat, lng):
         # Setup a new server
-        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive)
+        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, lat=lat, lng=lng)
         print("Created server process " + str(client_port))
         # tell the distributor you exist
         s.tell_distributor(distr_port)
@@ -71,34 +72,78 @@ class Populator:
 
 
     # runs a test version that should work
-    def test_setup(self):
+    def test_setup_2s_2c(self):
         # initialize the distributor
         dp = 11000
         d = mp.Process(target=self.distributor_process, args=(dp, 23))
         d.start()
-        time.sleep(0.1)
+        time.sleep(0.3)
 
         servers = []
         num_servers = 2
         for i in range(num_servers):
             # run a server
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1))
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1, 1, 1))
             s.start()
             servers.append(s)
             time.sleep(0.1)
 
         # spawn a client process
-        c1 = mp.Process(target=self.client_process, args=(dp, 15))
+        c1 = mp.Process(target=self.client_process, args=(dp, 15, 1, 1))
         c1.start()
 
         # spawn another client process
         time.sleep(1)
-        c2 = mp.Process(target=self.client_process, args=(dp, 10))
+        c2 = mp.Process(target=self.client_process, args=(dp, 10, 1, 1))
         c2.start()
 
         # wait until the client processes terminate
         c2.join()
         c1.join()
+        # then close the servers
+        for s in servers:
+            s.join()
+        # then close the distributor
+        d.join()
+
+
+    # runs a test version based on geolocations
+    def test_setup_geo(self, num_root_servers, num_players):
+        # initialize the distributor
+        dp = 11000
+        d = mp.Process(target=self.distributor_process, args=(dp, num_players*2.7+3))
+        d.start()
+        time.sleep(0.5)
+
+        # create servers with different geo locations
+        servers = []
+        space_between_servers = 1./num_root_servers
+        for i in range(num_root_servers):
+            sx = (i+1) * space_between_servers - space_between_servers/2.
+            for j in range(num_root_servers):
+                sy = (j+1) * space_between_servers
+                # run a server on those latitude longitude
+                server_num = (i*num_root_servers)+j
+                s = mp.Process(target=self.server_process, args=(10000+server_num, 10100+server_num, dp, num_players*2.5+1, 1, sy, sx))
+                s.start()
+                servers.append(s)
+
+        time.sleep(num_players*0.2)
+
+        # create clients with random geo locations in [1,1]
+        clients = []
+        for i in range(num_players):
+            x = random.random()
+            y = random.random()
+            # spawn a client process
+            c = mp.Process(target=self.client_process, args=(dp, 2, y, x))
+            c.start()
+            clients.append(c)
+            time.sleep(2)
+
+        # wait until the client processes terminate
+        for c in clients:
+            c.join()
         # then close the servers
         for s in servers:
             s.join()
@@ -114,7 +159,7 @@ class Populator:
         play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
 
         # create a server setup
-        s1 = mp.Process(target=self.server_process, args=(10000,50, 1))
+        s1 = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 50, 1, 1, 1))
         s1.start()
 
         # start populating
@@ -122,7 +167,7 @@ class Populator:
             # get a random lifetime from the wow distribution
             playtime = play_dist[random.randint(0, len(play_dist)-1)]
             # create the client
-            c = mp.Process(target=self.client_process, args=(server_port,playtime))
+            c = mp.Process(target=self.client_process, args=(server_port,playtime,1,1))
             c.start()
             # wait the set amount of time between adding players
             time.sleep(join_rate)

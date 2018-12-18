@@ -9,10 +9,12 @@ from threading import Thread
 
 
 class Server:
-    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1, ID=0):
+    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1, ID=0, lat=1, lng=1):
         # we could also place object on a 25x25 grid
         self.port = port
         self.peer_port = peer_port
+        self.lat = lat
+        self.lng = lng
         self.life_time = life_time
         self.start_time = time.time()
         self.check_alive = check_alive
@@ -62,7 +64,11 @@ class Server:
         # create socket for single communication with distributor
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # send a message to the distributor
-            send_mess = ('NEW_SERVER|' + str(self.port) + '|' + str(self.peer_port)).encode('UTF-8')
+            lat_str = "{:.4f}".format(self.lat)
+            lng_str = "{:.4f}".format(self.lng)
+            join_mess = 'NEW_SERVER|' + str(self.port) + '|' + str(self.peer_port) + \
+                        '|' + lat_str + ';' + lng_str
+            send_mess = (join_mess).encode('UTF-8')
             s.connect(('localhost', self.distr_port))
             s.sendall(send_mess)
             # get a peer server port back from the distributor
@@ -243,7 +249,7 @@ class Server:
                     # create socket for single communication with distributor
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         # send a message to the distributor
-                        send_mess = ('SERVER|' + str(len(self.connections)-1)).encode('UTF-8')
+                        send_mess = ('SERVER|' + str(self.port) + '|' + str(len(self.connections)-1)).encode('UTF-8')
                         s.connect(('localhost', self.distr_port))
                         s.sendall(send_mess)
                     print("No message received")
@@ -339,9 +345,12 @@ if __name__ == '__main__':
     distr_port = int(sys.argv[3])
     run_time = int(sys.argv[4])
     check_alive = int(sys.argv[5])
+    server_id = int(sys.argv[6])
+    lat = int(sys.argv[7])
+    lng = int(sys.argv[8])
 
     # Setup a new server
-    s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive)
+    s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, ID=server_id, lat=lat, lng=lng)
     print("Created server process " + str(client_port))
     # tell the distributor you exist
     s.tell_distributor(distr_port)

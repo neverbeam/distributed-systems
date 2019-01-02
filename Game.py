@@ -1,5 +1,5 @@
 """
-Author: Kevin Rojer & Ali Almoshawah
+Author: Kevin Rojer
 Version: 1.0
 Date: 30 November 2018
 """
@@ -33,28 +33,31 @@ class Game:
         y = player.y
         x = player.x
         if self.map[y][x] == "*":
-            print("Error: Cannot remove player, spot {} {} is empty.".format(player.y, player.x))
+            print("Error: Cannot remove player, spot {} {} is empty {}.".format(player.y, player.x, player.ID))
         else:
             del self.players[player.ID]
             self.map[y][x] = "*"
 
-    def disconnect_player(self, player):
-        """ Disconnect a player that is dead"""
-        if isinstance(self.upper, client.Client) and self.upper.myplayer.ID == player.ID:
-            self.upper.keep_alive = 0
+
+    # def disconnect_player(self, player):
+    #     """ Disconnect a player that is dead"""
+    #     if isinstance(self.upper, client.Client) and self.upper.myplayer.ID == player.ID:
+    #         self.upper.keep_alive = 0
 
 
     def update_grid(self, data):
         """Update my grid"""
-        # move;player;up/down/left/rigth
-        data = data.split(";")
+        print ("UPDATING GRID WITH: ", data)
+        # timestamp;move;player;up/down/left/rigth
+        data = data.split(";")[1:]
+
         try:
             if data[0] == "move":
                 player = self.players[data[1]]
                 self.map[player.y][player.x] = "*"
                 if player.move_player(data[2]):
                     self.map[player.y][player.x] = player
-                    print("new coordinates", player.y, player.x)
+                    print("new coordinates", player.ID, player.y, player.x)
                     return 1
                 else:
                     self.map[player.y][player.x] = player
@@ -86,7 +89,7 @@ class Game:
                 return 0
 
             else:
-                print("Not a valid command")
+                print("Not a valid command:", data)
                 return 0
         except(KeyError):
             return 0

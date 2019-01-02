@@ -1,5 +1,5 @@
 """
-Author: Kevin Rojer & Ali Almoshawah
+Author: Kevin Rojer 
 Version: 1.0
 Date: 3 December 2018
 """
@@ -20,7 +20,8 @@ class User:
         distance = self.get_distance(victim)
 
         if distance > self.maxrange:
-            print("Error: Attack not valid! Distance is greater than 2.")
+            print("Error: Attack not valid! Distance is greater than max.")
+            print(victim.y, victim.x, self.y, self.x, self.ID, victim.ID)
             return 0
         else:
             print("Victim {} hp: {}".format(victim.ID, victim.hp))
@@ -29,12 +30,11 @@ class User:
             if victim.hp <= 0:
                 print("player {} is dead! Remove victim from game.".format(victim.ID))
                 self.game.remove_player(victim)
-                self.game.disconnect_player(victim)
             return 1
 
 
     def get_distance(self, victim):
-        return abs(self.x - victim.x) + abs(self.y - victim.y)
+        return (abs(self.x - victim.x) + abs(self.y - victim.y))
 
 
 class Dragon(User):
@@ -60,28 +60,28 @@ class Player(User):
         """ Move the player in the right direction. """
         if direction == "up":
             if self.y == self.game.height-1 or self.game.map[self.y+1][self.x] != "*":
-                print("Error: Invalid move! Cannot move up, player on the edge.")
+                print("Error: Invalid move! cannot move up")
                 return 0
             else:
                 self.y += 1
                 return 1
         elif direction == "down":
             if self.y == 0 or self.game.map[self.y-1][self.x] != "*":
-                print("Error: Invalid move! Cannot move down, player on the edge.")
+                print("Error: Invalid move! Cannot move down")
                 return 0
             else:
                 self.y -= 1
                 return 1
         elif direction == "left":
             if self.x == 0 or  self.game.map[self.y][self.x-1] != "*":
-                print("Error: Invalid move! Cannot move left, player on the edge.")
+                print("Error: Invalid move! Cannot move left")
                 return 0
             else:
                 self.x -= 1
                 return 1
         elif direction == "right":
             if self.x == self.game.width-1 or self.game.map[self.y][self.x+1] != "*":
-                print("Error: Invalid move! Cannot move right, player on the edge.")
+                print("Error: Invalid move! Cannot move right")
                 return 0
             else:
                 self.x += 1

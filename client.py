@@ -34,9 +34,8 @@ class Client:
         #Parse the data so that the user contains the whole grid.
 
         # type, ID, x, y, hp , ap,
-        data = data.split(";")
+        data = data[:-3].split(";")
         del data[-1]
-        highestID = 0
         for i in range(0, len(data), 6):
             playerdata = data[i:i+6]
             if playerdata[0] == "Player":
@@ -44,18 +43,19 @@ class Client:
                 player.hp = int(playerdata[4])
                 player.ap = int(playerdata[5])
 
-                # The highest id is the new player, so me
-                if int(playerdata[1]) > highestID:
-                    highestID = int(playerdata[1])
             elif playerdata[0] == "Dragon":
-                print("found a dragon")
                 player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                 player.hp = int(playerdata[4])
                 player.ap = int(playerdata[5])
 
+            elif playerdata[0] == "Myplayer":
+                player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
+                player.hp = int(playerdata[4])
+                player.ap = int(playerdata[5])
+                self.myplayer = player
+
             self.game.add_player(player)
 
-        self.myplayer = self.game.players[str(highestID)]
         print ( "succesfully received grid")
 
 
@@ -130,12 +130,13 @@ class Client:
         while self.keep_alive:
             # First process server dataself.
             while not self.queue.empty():
-                data = self.queue.get().decode('utf-8')
-                if data.split(";")[1] != self.myplayer.ID:
-                    print( "data from thread:", data)
-                    self.game.update_grid(data)
-                    # do something with row
-                    self.queue.task_done()
+                data = self.queue.get()
+                print( "data from thread:", data)
+                self.game.update_grid(data)
+                # do something with row
+                self.queue.task_done()
+
+
 
             message = ""
             if self.demo:
@@ -143,8 +144,8 @@ class Client:
                 # THIS BLOCKS OTHER INPUT NOW!!
                 message = input("Create an action:\n")
             else:
-                # check if the player should disconnect based on playtime
-                if self.life_time < (time.time() - self.start_time):
+                # check if the player should disconnect based on playtime or when hp is low
+                if self.life_time < (time.time() - self.start_time) or self.myplayer.hp <= 0:
                     # Let the server know you want to disconnect
                     print ("DISCONNECTING player", self.myplayer.ID)
                     self.keep_alive = 0
@@ -169,14 +170,14 @@ class Client:
 
                     for player in playerlist:
                         if player.hp < 0.5*player.max_hp and player != self.myplayer:
-                            message = "heal;{};{}".format(self.myplayer.ID, player.ID)
+                            message = "heal;{};{};end".format(self.myplayer.ID, player.ID)
                             break
 
                     # Message unchanged , no healing done
                     if message == "":
                         for dragon in dragonlist:
                             if self.myplayer.get_distance(dragon)<3:
-                                message = "attack;{};{};".format(self.myplayer.ID, dragon.ID)
+                                message = "attack;{};{};end".format(self.myplayer.ID, dragon.ID)
                                 break
                     # message unchanged, no dragon in place
                     if message == "":
@@ -197,18 +198,17 @@ class Client:
                             directions.append("down")
                         elif (min_dragon.y-self.myplayer.y)>0:
                             directions.append("up")
-                        message = "move;{};{};".format(self.myplayer.ID, np.random.choice(directions)) ### What TODO if move is invalid?
+                        message = "move;{};{};end".format(self.myplayer.ID, np.random.choice(directions)) ### What TODO if move is invalid?
 
                     #message = "Debug message;, time=" + str(time.time() - self.start_time)
-            if self.game.update_grid(message):
-                message_send = self.send_message(message)
-                if not message_send:
-                    print("Server went down, look for new one")
-                    # self.disconnect_server()
-                    server_port = self.get_server(self.distr_port)
-                    self.sock = self.connect_server(port=server_port)
-                    self.queue = Queue()
-                    self.start_receiving()
+            message_send = self.send_message(message)
+            if not message_send:
+                print("Server went down, look for new one")
+                # self.disconnect_server()
+                server_port = self.get_server(self.distr_port)
+                self.sock = self.connect_server(port=server_port)
+                self.queue = Queue()
+                self.start_receiving()
 
         self.disconnect_server()
 
@@ -217,14 +217,19 @@ class Client:
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             readable, writable, errored = select.select([self.sock], [], [])
 
-            try: 
-                data = self.sock.recv(64)
-                if data:
+            try:
+                data = b''
+                while True:
+                    data += self.sock.recv(64)
                     # simulate latency
                     time.sleep(self.latency)
                     # update my update_grid
-                    queue.put(data)
-                    print ("message: incomming " + data.decode('utf-8'))
+                    if data[-9:] == b'endupdate':
+                        break
+
+                for item in data[:-9].decode('utf-8').split('end'):
+                    queue.put(item)
+                print ("message: incomming " + data.decode('utf-8'))
             except ConnectionResetError:
                 break
 

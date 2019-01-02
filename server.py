@@ -43,7 +43,6 @@ class Server:
         # Listen for incoming connections
         self.sock.listen(3)
 
-
         # FOR PEERS
         # Create a TCP/IP socket
         self.peer_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -125,7 +124,7 @@ class Server:
 
                 # randomly select one of the players
                 if playerlist:
-                    message = "attack;{};{};".format(dragon.ID, random.choice(playerlist).ID)
+                    message = "attack;{};{};end".format(dragon.ID, random.choice(playerlist).ID)
                     queue.put(message)
 
 
@@ -159,11 +158,14 @@ class Server:
         for server in self.peer_connections[1:]:
             server.sendall(data)
 
-    def send_grid(self, client):
+    def send_grid(self, client, theirplayerID):
         """Send the grid to new players or new server"""
 
         for player in self.game.players.values():
-            data = "{};{};{};{};{};{};".format( player.type, player.ID, player.x, player.y, player.hp, player.ap)
+            if player.ID == theirplayerID:
+                data = "{};{};{};{};{};{};".format("Myplayer", player.ID, player.x, player.y, player.hp, player.ap)
+            else:
+                data = "{};{};{};{};{};{};".format( player.type, player.ID, player.x, player.y, player.hp, player.ap)
             client.sendall(data.encode('utf-8'))
         # Send ending character
         client.sendall(b"end")
@@ -182,17 +184,17 @@ class Server:
         self.ID_connection[client] = player
         self.game.ID += 1
         self.game.add_player(player)
-        self.send_grid(client)
+        self.send_grid(client, player.ID)
 
         # Send data to other clients
-        data = "join;{};{};{};{};{};".format(player.ID, player.x, player.y, player.hp, player.ap)
+        data = "{};join;{};{};{};{};{};endupdate".format(time.time(),player.ID, player.x, player.y, player.hp, player.ap)
         self.broadcast_clients(data.encode('utf-8'))
 
     def remove_client(self, client, log):
         """ Removing client if disconnection happens"""
         player = self.ID_connection[client]
         playerID = player.ID
-        message = "leave;{};".format(playerID)
+        message = "{};leave;{};endupdate".format(time.time(),playerID)
 
         if player.hp > 0:
             self.game.remove_player(player)
@@ -209,33 +211,19 @@ class Server:
         print("Peer connection closed")
 
 
-
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
         log = open('logfile','w')
 
+        self.time_out = self.check_alive
+        # Game ticks at whole seconds
+        self.tickdata = b''
+
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             try:
                 # Wait for a connection
-                readable, writable, errored = select.select(self.connections, [], [], self.check_alive)
-
-                # See if a dragon move needs to be made.
-                while not self.queue.empty():
-                    data = self.queue.get()
-                    self.game.update_grid(data)
-                    self.broadcast_clients(data.encode('utf-8'))
-                    self.queue.task_done()
-                    log.write(data)
-
-                # Check whether there are message from other servers
-                while not self.server_queue.empty():
-                    data = self.server_queue.get()
-                    data = data.decode('utf-8')
-                    self.game.update_grid(data)
-                    # TODO use the timestamp of this message to synchronise moves
-                    # self.broadcast_servers(data.encode('utf-8'))
-                    self.server_queue.task_done()
-                    log.write(data)
+                self.time_out = int(time.time()) + 1 - time.time()
+                readable, writable, errored = select.select(self.connections, [], [], self.time_out)
 
                 # update the peer connections for the main process
                 while not self.peer_queue.empty():
@@ -254,6 +242,54 @@ class Server:
                         s.sendall(send_mess)
                     print("No message received")
 
+
+                    # Sync all messages with out servers.
+                    # See if a dragon move needs to be made. TODO Just make dragon moves here
+                    while not self.queue.empty():
+                        data = self.queue.get()
+                        self.tickdata += (str(time.time())+';' + data).encode('utf-8')
+                        self.queue.task_done()
+                        log.write(data)
+
+                    if self.tickdata:
+                        self.broadcast_servers(self.tickdata)
+                    else:
+                        self.broadcast_servers(b"test")
+
+                    # Change to num_server - 1
+                    server_count = 1 # Own pear also in list
+                    while not server_count == len(self.peer_connections):
+                        data = self.server_queue.get()
+                        if data == b'test':
+                            pass
+                        else:
+                            self.tickdata += data
+                        self.server_queue.task_done()
+                        server_count += 1
+
+
+                    # Sort the data
+                    data = self.tickdata.decode('utf-8')
+                    if data:
+                        data = data.split("end")[:-1] # Last end will give a empty index
+                        data = sorted(data)
+                        # Parse data
+
+                        senddata = []
+                        for command in data:
+                            if self.game.update_grid(command):
+                                senddata.append(command)
+                                log.write(command)
+
+                        # Send to clients
+                        data = 'end'.join(senddata) + "endupdate"
+                        print("Data that will be broadcasted: ", data)
+                        self.broadcast_clients(data.encode('utf-8'))
+
+                    # Some other handling stuff
+                    self.tickdata = b''
+                    print("FInished ssending my grid to other servers.")
+
                 else:
                     # got a message
                     for client in readable:
@@ -269,14 +305,11 @@ class Server:
                             data = client.recv(64)
                             print("SERVER RECEIVED", data)
                             if data:
-                                # Check whether update grid was succesfull
-                                if self.game.update_grid(data.decode('utf-8')):
-                                    self.broadcast_clients(data)
-                                    #print ("TRYOUUTTT0", data, data+b"end of move" )
-                                    self.broadcast_servers(data)
-                                    log.write(data.decode('utf-8') + "\n")
+                                self.tickdata += ((str(time.time())+';').encode('utf-8') + data)
                             else: #connection has closed
                                 self.remove_client(client, log)
+
+
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
                 # self.power_down()
@@ -319,7 +352,7 @@ class Server:
                             self.peer_queue.put(connection)
                         # Else we have some data from a peer
                         else:
-                            data = peer.recv(64)
+                            data = peer.recv(1028)
                             if data:
                                 # PUtting data in queue so it can be read by server
                                 print(self.peer_port, " received ", data)

@@ -92,6 +92,8 @@ class Client:
 
     def connect_server(self, port=10000):
         """ Connect to the server. """
+        self.port = port
+
         # Create a TCP/IP socket
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -132,9 +134,10 @@ class Client:
             while not self.queue.empty():
                 data = self.queue.get()
                 print( "data from thread:", data)
-                self.game.update_grid(data)
-                # do something with row
-                self.queue.task_done()
+                if len(data) > 0:
+                    self.game.update_grid(data)
+                    # do something with row
+                    self.queue.task_done()
 
 
 
@@ -253,4 +256,4 @@ if __name__ == "__main__":
     # remove the player from the server
     c.disconnect_server()
     time.sleep(2) #Need a timing here, to prevent too quick shutdown
-    print("Closing client process connected to server on port ") #+str(c.port))
+    print("Closing client process connected to server on port " +str(c.port))

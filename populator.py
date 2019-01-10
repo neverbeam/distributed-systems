@@ -20,7 +20,7 @@ import pickle
 
 
 class Populator:
-    def __init__(self, manual=False):
+    def __init__(self, manual=False, experiment_num=0, experiment_arg=1):
         mp.set_start_method('spawn')
         self.commands = self.list_commands()
         self.keep_alive = True
@@ -30,9 +30,12 @@ class Populator:
         if manual:
             self.get_input()
         else:
-            #self.wow_setup(1)
-            # self.test_setup_2s_2c()
-            self.test_setup_geo(3, 100)
+            if experiment_num == 1:
+                self.test_setup_2s_2c()
+            elif experiment_num == 2:
+                self.wow_setup(1)
+            elif experiment_num == 3:
+                self.test_setup_geo(experiment_arg, 100)
 
     # creates a running client
     def client_process(self, distr_port, play_time, lat, lng, demo=False):
@@ -51,9 +54,9 @@ class Populator:
 
 
     # creates a running server
-    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive, lat, lng):
+    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive, ID, lat, lng):
         # Setup a new server
-        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, lat=lat, lng=lng)
+        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, ID=ID, lat=lat, lng=lng)
         print("Created server process " + str(client_port))
         # tell the distributor you exist
         s.tell_distributor(distr_port)
@@ -83,7 +86,7 @@ class Populator:
         num_servers = 2
         for i in range(num_servers):
             # run a server
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1, 1, 1))
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1, i*100, 1, 1))
             s.start()
             servers.append(s)
             time.sleep(0.1)
@@ -111,6 +114,7 @@ class Populator:
     def test_setup_geo(self, num_root_servers, num_players):
         # initialize the distributor
         dp = 11000
+        # create a distributor that terminates after all servers are done
         d = mp.Process(target=self.distributor_process, args=(dp, num_players*2.7+3))
         d.start()
         time.sleep(0.5)
@@ -124,7 +128,9 @@ class Populator:
                 sy = (j+1) * space_between_servers
                 # run a server on those latitude longitude
                 server_num = (i*num_root_servers)+j
-                s = mp.Process(target=self.server_process, args=(10000+server_num, 10100+server_num, dp, num_players*2.5+1, 1, sy, sx))
+                # create servers that are closed when all players are done
+                s = mp.Process(target=self.server_process, args=(10000+server_num, 10100+server_num, dp, 
+                        num_players*2.5+1, 1, server_num*(num_players+1), sy, sx))
                 s.start()
                 servers.append(s)
 
@@ -155,11 +161,16 @@ class Populator:
     def wow_setup(self, join_rate=2):
         clients = []
         populating = True
-        server_port = 10000
+        dp = 11000
         play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
 
+        # create a distributor that terminates after all servers are done
+        d = mp.Process(target=self.distributor_process, args=(dp, 52))
+        d.start()
+        time.sleep(0.5)
+
         # create a server setup
-        s1 = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 50, 1, 1, 1))
+        s1 = mp.Process(target=self.server_process, args=(10000, 10100, dp, 50, 1, 1, 1, 1))
         s1.start()
 
         # start populating
@@ -167,7 +178,7 @@ class Populator:
             # get a random lifetime from the wow distribution
             playtime = play_dist[random.randint(0, len(play_dist)-1)]
             # create the client
-            c = mp.Process(target=self.client_process, args=(server_port,playtime,1,1))
+            c = mp.Process(target=self.client_process, args=(dp,playtime,1,1))
             c.start()
             # wait the set amount of time between adding players
             time.sleep(join_rate)
@@ -182,6 +193,7 @@ class Populator:
         s1.join()
 
 
+    # DEPRECATED, DOES NOT WORK ANYMORE
     # asks you for input, so that you can create/kill/list servers/clients
     def get_input(self):
         while self.keep_alive:
@@ -280,5 +292,9 @@ class Populator:
 
 
 if __name__ == '__main__':
-    # set manual to true if you want to manually create servers and clients
-    p = Populator(manual=False)
+    import sys
+    experiment_num = int(sys.argv[1])
+    experiment_arg = 0
+    if experiment_num == 3:
+        experiment_arg = int(sys.argv[2])
+    p = Populator(manual=False, experiment_num=experiment_num, experiment_arg=experiment_arg)

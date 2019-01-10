@@ -288,7 +288,7 @@ class Server:
 
                     # Some other handling stuff
                     self.tickdata = b''
-                    print("FInished ssending my grid to other servers.")
+                    print("Finished sending my grid to other servers.")
 
                 else:
                     # got a message

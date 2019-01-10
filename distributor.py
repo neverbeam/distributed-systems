@@ -31,9 +31,10 @@ class Distributor:
     def power_down(self):
         """ Close down the distributor. """
         self.sock.close()
-        print(self.latencies)
-        print(np.mean(self.latencies))
-        print(np.std(self.latencies))
+        if len(self.latencies) > 0:
+            print(self.latencies)
+            print(np.mean(self.latencies))
+            print(np.std(self.latencies))
 
     # add a server port to the server list
     def add_server(self, server_port, peer_port, lat, lng):

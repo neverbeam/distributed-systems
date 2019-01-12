@@ -109,7 +109,10 @@ class Client:
     def disconnect_server(self):
         """ disconnect from the server"""
         # close the socket
-        self.sock.shutdown(socket.SHUT_WR)
+        try:
+            self.sock.shutdown(socket.SHUT_WR)
+        except OSError:
+            pass
 
     def send_message(self, message):
         """ Send an message/action to the server"""

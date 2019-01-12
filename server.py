@@ -3,7 +3,7 @@ import select
 import random
 import time
 from Game import *
-from queue import Queue
+from queue import Queue, Empty
 from threading import Thread
 
 
@@ -34,11 +34,19 @@ class Server:
         # Create a TCP/IP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        # Bind the socket to the port
-        server_address = ('localhost', port)
-        print('Server starting up on {} port {}'.format(*server_address))
-        self.sock.bind(server_address)
-        self.connections = [self.sock]
+        found_free_port = False
+        while not found_free_port:
+            try:
+                server_address = ('localhost', self.port)
+                self.sock.bind(server_address)
+                print('Server starting up on {} port {}'.format(*server_address))
+                found_free_port = True
+                self.connections = [self.sock]
+            except OSError:
+                print("Given server port was in use, trying similar...")
+                self.port += 10000
+                if self.port >= 100000:
+                    raise OSError('Cant find a suitable server port.')
 
         self.dragonlist = []
         self.create_dragon()
@@ -51,10 +59,19 @@ class Server:
         self.peer_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # Bind the socket to the port
-        server_peer_address = ('localhost', peer_port)
-        print('Peer server starting up on {} port {}'.format(*server_peer_address))
-        self.peer_sock.bind(server_peer_address)
-        self.peer_connections = [self.peer_sock]
+        found_free_port = False
+        while not found_free_port:
+            try:
+                server_peer_address = ('localhost', self.peer_port)
+                self.peer_sock.bind(server_peer_address)
+                print('Peer server starting up on {} port {}'.format(*server_peer_address))
+                found_free_port = True
+                self.peer_connections = [self.peer_sock]
+            except OSError:
+                print("Given peer port was in use, trying similar...")
+                self.peer_port += 10000
+                if self.peer_port >= 100000:
+                    raise OSError('Cant find a suitable peer port.')
 
         # Listen for incoming connections
         self.peer_sock.listen(4)
@@ -195,7 +212,10 @@ class Server:
         """ Broadcast the message to other servers"""
         # Send data to other clients
         for server in self.peer_connections[1:]:
-            server.sendall(data)
+            try:
+                server.sendall(data)
+            except ConnectionResetError:
+                print("This peer got removed ", str(server))
 
     def send_grid(self, client, theirplayerID):
         """Send the grid to new players or new server"""
@@ -316,12 +336,15 @@ class Server:
                     # Change to num_server - 1
                     server_count = 1 # Own pear also in list
                     while not server_count == len(self.peer_connections):
-                        data = self.server_queue.get()
-                        if data == b'test':
-                            pass
-                        else:
-                            self.tickdata += data
-                        self.server_queue.task_done()
+                        try:
+                            data = self.server_queue.get(block=True, timeout=0.1/self.speedup)
+                            if data == b'test':
+                                pass
+                            else:
+                                self.tickdata += data
+                            self.server_queue.task_done()
+                        except Empty:
+                            print("Peer got removed?")
                         server_count += 1
 
 
@@ -406,16 +429,18 @@ class Server:
                             self.peer_queue.put((connection,))
                         # Else we have some data from a peer
                         else:
-                            data = peer.recv(1028)
-                            if data == b'getgrid':
-                                self.peer_queue.put(('getgrid', peer))
-                                print("received getgrid")
-                                continue
-                            elif data:
-                                # PUtting data in queue so it can be read by server
-                                print(self.peer_port, " received ", data)
-                                self.server_queue.put(data)
-                            else: #connection has closed
+                            try:
+                                data = peer.recv(1028)
+                                if data == b'getgrid':
+                                    self.peer_queue.put(('getgrid', peer))
+                                    continue
+                                if data:
+                                    # PUtting data in queue so it can be read by server
+                                    print(self.peer_port, " received ", data)
+                                    self.server_queue.put(data)
+                                else: #connection has closed
+                                    self.remove_peer(peer)
+                            except ConnectionResetError:
                                 self.remove_peer(peer)
 
             # Handling stopping servers and closing connections.
@@ -425,6 +450,8 @@ class Server:
 
         # always power down for right now
         print("Peer server shutting down")
+        log.close()
+        time.sleep(1/self.speedup)
         self.peer_power_down()
 
 

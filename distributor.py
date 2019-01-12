@@ -6,11 +6,12 @@ import math
 import numpy as np
 
 class Distributor:
-    def __init__(self, port=11000, life_time=1100):
+    def __init__(self, port=11000, life_time=1100, printing=True, speedup=1):
         # setup communication on this port
         self.own_port = port
         self.life_time = life_time
         self.start_time = time.time()
+        self.speedup = speedup
         # list of active game servers
         self.servers = []
         self.init_socket()
@@ -52,20 +53,21 @@ class Distributor:
     # look for the best server port for a new player
     def add_player(self, lat, lng):
         best_server = None
-        best_distance = None
+        best_distance_players = None
         # check all known servers
         for server in self.servers:
             # get the euclidean distance
             distance = math.sqrt((server[2] - lat)**2 + (server[3] - lng)**2)
-            # find the server with the lowest number of players (is on index 2)
-            if best_server == None or best_distance > distance:
+            players = server[4]+1
+            # find the server with the lowest number of players * distance (is on index 2)
+            if best_server == None or best_distance_players > (players*(distance+0.1)):
                 best_server = server
-                best_distance = distance
+                best_distance_players = players*(distance+0.1)
 
         # set it, but also get the player number dynamicly by communicating with servers
         best_server[4] += 1 # add 1 to the servers player count
-        # prevent errors
-        best_distance = 0 if best_distance == None else best_distance
+        # prevent errors, but report on the closest server
+        best_distance = 0 if best_distance_players == None else best_distance_players/(best_server[4])
 
         # send the player to the best server on the client port
         return best_server[0], best_distance
@@ -86,8 +88,8 @@ class Distributor:
     # run this as a daemon to receive player join requests
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
-        self.sock.settimeout(1)
-        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
+        self.sock.settimeout(1/self.speedup)
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
             try:
                 # open up a new socket to communicate with this messager
                 conn, addr = self.sock.accept()

@@ -8,10 +8,11 @@ from Player import *
 import numpy as np
 
 class Client:
-    def __init__(self, distr_port=11000, demo=False, life_time=1000, lat=1, lng=1):
+    def __init__(self, distr_port=11000, demo=False, life_time=1000, lat=1, lng=1, speedup=1.0):
         self.demo = demo
         self.life_time = life_time
         self.start_time = time.time()
+        self.speedup = speedup
         self.keep_alive = True
         self.distr_port = distr_port
         self.lat = lat
@@ -116,7 +117,7 @@ class Client:
         print('sending {!r}'.format(message))
         try:
             # simulate latency
-            time.sleep(self.latency)
+            time.sleep(self.latency/self.speedup)
             # then send the message
             self.sock.sendall(message.encode('utf-8'))
             return True
@@ -143,12 +144,12 @@ class Client:
 
             message = ""
             if self.demo:
+                # DEPRECATED
                 # Get a message from an actual human running the demo program
-                # THIS BLOCKS OTHER INPUT NOW!!
                 message = input("Create an action:\n")
             else:
                 # check if the player should disconnect based on playtime or when hp is low
-                if self.life_time < (time.time() - self.start_time) or self.myplayer.hp <= 0:
+                if self.life_time < (time.time() - self.start_time)*self.speedup or self.myplayer.hp <= 0:
                     # Let the server know you want to disconnect
                     print ("DISCONNECTING player", self.myplayer.ID)
                     self.keep_alive = 0
@@ -156,8 +157,8 @@ class Client:
 
                 else:
                     # This message should be created by an automated system (computer that plays game)
-                    time.sleep(1)
-                    # NORMAL BEHAVIOR IS GOING TO BE HERE
+                    time.sleep(1/self.speedup)
+
                     # NOrmal order -> look for heals -> look for attacks -> MOve
                     # Look for heals in space around me
                     playerlist = []
@@ -217,7 +218,7 @@ class Client:
 
     def server_input(self, queue):
         """ Check for server input. """
-        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
             readable, writable, errored = select.select([self.sock], [], [])
 
             try:
@@ -225,7 +226,7 @@ class Client:
                 while True:
                     data += self.sock.recv(64)
                     # simulate latency
-                    time.sleep(self.latency)
+                    time.sleep(self.latency/self.speedup)
                     # update my update_grid
                     if data[-9:] == b'endupdate':
                         break

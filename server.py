@@ -9,7 +9,7 @@ from threading import Thread
 
 
 class Server:
-    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1, ID=0, lat=1, lng=1):
+    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1, ID=0, lat=1, lng=1, speedup=1.0):
         # we could also place object on a 25x25 grid
         self.port = port
         self.peer_port = peer_port
@@ -17,6 +17,7 @@ class Server:
         self.lng = lng
         self.life_time = life_time
         self.start_time = time.time()
+        self.speedup = speedup
         self.check_alive = check_alive
         self.game = Game(self, ID,2,1)
         self.ID_connection = {}
@@ -113,8 +114,8 @@ class Server:
         Thread(target=self.run_dragon, args=(self.queue,), daemon = True).start()
 
     def run_dragon(self, queue):
-        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
-            time.sleep(2)
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
+            time.sleep(2/self.speedup)
             # Look for player around me
             for dragon in self.dragonlist:
                 playerlist = []
@@ -219,10 +220,10 @@ class Server:
         # Game ticks at whole seconds
         self.tickdata = b''
 
-        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
             try:
-                # Wait for a connection
-                self.time_out = int(time.time()) + 1 - time.time()
+                # Wait for a connection, based on actual seconds
+                self.time_out = (int(time.time()) + 1 - time.time())/self.speedup
                 readable, writable, errored = select.select(self.connections, [], [], self.time_out)
 
                 # update the peer connections for the main process
@@ -331,10 +332,10 @@ class Server:
         """ Read the sockets for new peer connections or peer game updates."""
         log = open('logfile','w')
 
-        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
+        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
             try:
                 # Wait for a connection
-                readable, writable, errored = select.select(self.peer_connections, [], [], self.check_alive)
+                readable, writable, errored = select.select(self.peer_connections, [], [], self.check_alive/self.speedup)
                 if not readable and not writable and not errored:
                     # timeout is reached
                     pass

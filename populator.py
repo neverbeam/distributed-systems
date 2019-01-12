@@ -84,7 +84,7 @@ class Populator:
         sys.stdout = f
 
         # set a speedup factor for testing
-        speedup = 2.0
+        speedup = 4.0
         
         # initialize the distributor
         dp = 11000

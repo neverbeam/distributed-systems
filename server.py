@@ -106,7 +106,9 @@ class Server:
         self.start_peer_receiving()
 
     def create_dragon(self):
-        dragon = Dragon(str(self.game.ID), 15,15, self.game)
+        x = random.randint(0,25)
+        y = random.randint(0,25)
+        dragon = Dragon(str(self.game.ID), x,y, self.game)
         self.game.ID += 1
         self.game.add_player(dragon)
         self.dragonlist.append(dragon)
@@ -114,7 +116,7 @@ class Server:
 
     def run_dragon(self, queue):
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
-            time.sleep(2)
+            time.sleep(1)
             # Look for player around me
             for dragon in self.dragonlist:
                 playerlist = []
@@ -213,7 +215,8 @@ class Server:
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
-        log = open('logfile','w')
+        filename = 'logfile{}'.format(self.game.ID)
+        log = open(filename,'w')
 
         self.time_out = self.check_alive
         # Game ticks at whole seconds
@@ -249,7 +252,6 @@ class Server:
                         data = self.queue.get()
                         self.tickdata += (str(time.time())+';' + data).encode('utf-8')
                         self.queue.task_done()
-                        log.write(data)
 
                     if self.tickdata:
                         self.broadcast_servers(self.tickdata)
@@ -279,7 +281,7 @@ class Server:
                         for command in data:
                             if self.game.update_grid(command):
                                 senddata.append(command)
-                                log.write(command)
+                                log.write(command + '\n')
 
                         # Send to clients
                         data = 'end'.join(senddata) + "endupdate"
@@ -329,7 +331,6 @@ class Server:
 
     def read_peer_ports(self):
         """ Read the sockets for new peer connections or peer game updates."""
-        log = open('logfile','w')
 
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)):
             try:
@@ -367,7 +368,6 @@ class Server:
 
         # always power down for right now
         print("Peer server shutting down")
-        log.close()
         self.peer_power_down()
 
 

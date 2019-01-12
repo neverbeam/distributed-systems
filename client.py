@@ -185,7 +185,7 @@ class Client:
                     # message unchanged, no dragon in place
                     if message == "":
                         # Find the closest dragon
-                        min_dragon_distance = 30
+                        min_dragon_distance = 60
                         for dragon in dragonlist:
                             if self.myplayer.get_distance(dragon) < min_dragon_distance:
                                 min_dragon_distance = self.myplayer.get_distance(dragon)

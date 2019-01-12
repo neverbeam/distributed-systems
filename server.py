@@ -19,12 +19,14 @@ class Server:
         self.start_time = time.time()
         self.speedup = speedup
         self.check_alive = check_alive
+        self.tickdata = b''
         self.game = Game(self, ID,2,1)
         self.ID_connection = {}
         self.queue = Queue()
         self.server_queue = Queue()
         self.peer_queue = Queue()
         self.start_up(port, peer_port)
+
 
 
     def start_up(self, port=10000, peer_port=10100):
@@ -42,7 +44,7 @@ class Server:
         self.create_dragon()
 
         # Listen for incoming connections
-        self.sock.listen(3)
+        self.sock.listen(30)
 
         # FOR PEERS
         # Create a TCP/IP socket
@@ -56,6 +58,37 @@ class Server:
 
         # Listen for incoming connections
         self.peer_sock.listen(4)
+
+
+    def receive_grid(self, peer_socket):
+        """ Receive the current state of the grid from the server. """
+        data = ""
+        # Keep receiving until an end has been send. TCP gives in order arrival
+        while True:
+            data += peer_socket.recv(128).decode('utf-8')
+            if data[-3:] == "end":
+                break
+
+        #Parse the data so that the user contains the whole grid.
+
+        # type, ID, x, y, hp , ap,
+        data = data[:-3].split(";")
+        del data[-1]
+        for i in range(0, len(data), 6):
+            playerdata = data[i:i+6]
+            if playerdata[0] == "Player":
+                player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
+                player.hp = int(playerdata[4])
+                player.ap = int(playerdata[5])
+
+            elif playerdata[0] == "Dragon":
+                player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
+                player.hp = int(playerdata[4])
+                player.ap = int(playerdata[5])
+
+            self.game.add_player(player)
+
+        print ( "Server succesfully received grid ")
 
     # tell the distributor you exist, and get back list of your peers, and connect with peers
     def tell_distributor(self, distr_port):
@@ -93,12 +126,12 @@ class Server:
                         # Connect the socket to the port where the server is listening
                         peer_address = ('localhost', peer_port)
                         print('Peer connecting to {} port {}'.format(*peer_address))
-                        # TODO NOW: this does not work because the peer_address is not yet added to this socket?
                         peer_socket.connect(peer_address)
                         self.peer_connections.append(peer_socket)
-                        # TODO get the game from the last added peer
+
                         if i == len(dist_mess)-1:
-                            pass
+                            peer_socket.send(b'getgrid')
+                            self.receive_grid(peer_socket)
 
                     except ValueError:
                         # message was not an integer
@@ -106,10 +139,13 @@ class Server:
         # now start listening on the peer ports
         self.start_peer_receiving()
 
+
     def create_dragon(self):
         x = random.randint(0,25)
         y = random.randint(0,25)
         dragon = Dragon(str(self.game.ID), x,y, self.game)
+        message =  "{};join;{};{};{};{};{};end".format(time.time(),dragon.ID, dragon.x, dragon.y, dragon.hp, dragon.ap)
+        self.tickdata += message.encode("utf-8")
         self.game.ID += 1
         self.game.add_player(dragon)
         self.dragonlist.append(dragon)
@@ -127,7 +163,7 @@ class Server:
 
                 # randomly select one of the players
                 if playerlist:
-                    message = "attack;{};{};end".format(dragon.ID, random.choice(playerlist).ID)
+                    message = "{};attack;{};{};end".format(time.time(),dragon.ID, random.choice(playerlist).ID)
                     queue.put(message)
 
 
@@ -174,6 +210,16 @@ class Server:
         client.sendall(b"end")
         print("finished sending grid")
 
+    def send_grid_server(self, server):
+        """Send the grid to a new server"""
+
+        for player in self.game.players.values():
+            data = "{};{};{};{};{};{};".format( player.type, player.ID, player.x, player.y, player.hp, player.ap)
+            server.sendall(data.encode('utf-8'))
+        # Send ending character
+        server.sendall(b"end")
+        print("finished sending grid to SERVER")
+
     def create_player(self, client):
         """Create a player and message this to every body else."""
         # Make sure that new player doesn't spawn on old player
@@ -190,26 +236,25 @@ class Server:
         self.send_grid(client, player.ID)
 
         # Send data to other clients
-        data = "{};join;{};{};{};{};{};endupdate".format(time.time(),player.ID, player.x, player.y, player.hp, player.ap)
-        self.broadcast_clients(data.encode('utf-8'))
+        message =  "{};join;{};{};{};{};{};end".format(time.time(),player.ID, player.x, player.y, player.hp, player.ap)
+        self.tickdata += message.encode("utf-8")
 
     def remove_client(self, client, log):
         """ Removing client if disconnection happens"""
         player = self.ID_connection[client]
         playerID = player.ID
-        message = "{};leave;{};endupdate".format(time.time(),playerID)
+        message = "{};leave;{};end".format(time.time(), playerID)
 
         if player.hp > 0:
             self.game.remove_player(player)
-            self.broadcast_clients(message.encode('utf-8'))
+            self.tickdata += message.encode("utf-8")
 
-        log.write(message + "\n")
+        log.write("disconnection player {} \n".format(playerID))
         self.connections.remove(client)
         print("connection closed")
 
     def remove_peer(self, peer):
         """ Removing peer if shutdown happens"""
-        #log.write("A peer left")
         self.peer_connections.remove(peer)
         print("Peer connection closed")
 
@@ -221,7 +266,6 @@ class Server:
 
         self.time_out = self.check_alive
         # Game ticks at whole seconds
-        self.tickdata = b''
 
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
             try:
@@ -232,10 +276,15 @@ class Server:
 
                 # update the peer connections for the main process
                 while not self.peer_queue.empty():
-                    peer_connection = self.peer_queue.get()
-                    if peer_connection not in self.peer_connections:
-                        self.peer_connections.append(peer_connection)
-                    self.peer_queue.task_done()
+                    data = self.peer_queue.get()
+                    if data[0] == 'getgrid':
+                        self.send_grid_server(data[1])
+                        self.peer_queue.task_done()
+                    else:
+                        peer_connection = data[0]
+                        if peer_connection not in self.peer_connections:
+                            self.peer_connections.append(peer_connection)
+                        self.peer_queue.task_done()
 
                 if not readable and not writable and not errored:
                     # timeout is reached, just send player total to the distributor
@@ -252,7 +301,7 @@ class Server:
                     # See if a dragon move needs to be made. TODO Just make dragon moves here
                     while not self.queue.empty():
                         data = self.queue.get()
-                        self.tickdata += (str(time.time())+';' + data).encode('utf-8')
+                        self.tickdata += (data).encode('utf-8')
                         self.queue.task_done()
 
                     if self.tickdata:
@@ -304,8 +353,6 @@ class Server:
                         # If server side, then new connection
                         if client is self.sock:
                             connection, client_address = self.sock.accept()
-                            print ("Someone connected from {}".format(client_address))
-                            log.write("Someone connected from {}\n".format(client_address))
                             self.create_player(connection)
                             self.connections.append(connection)
                         # Else we have some data
@@ -356,11 +403,15 @@ class Server:
                             if connection not in self.peer_connections:
                                 self.peer_connections.append(connection)
                             new_peer_message = "NEW_PEER|" + str()
-                            self.peer_queue.put(connection)
+                            self.peer_queue.put((connection,))
                         # Else we have some data from a peer
                         else:
                             data = peer.recv(1028)
-                            if data:
+                            if data == b'getgrid':
+                                self.peer_queue.put(('getgrid', peer))
+                                print("received getgrid")
+                                continue
+                            elif data:
                                 # PUtting data in queue so it can be read by server
                                 print(self.peer_port, " received ", data)
                                 self.server_queue.put(data)

@@ -38,13 +38,6 @@ class Game:
             del self.players[player.ID]
             self.map[y][x] = "*"
 
-
-    # def disconnect_player(self, player):
-    #     """ Disconnect a player that is dead"""
-    #     if isinstance(self.upper, client.Client) and self.upper.myplayer.ID == player.ID:
-    #         self.upper.keep_alive = 0
-
-
     def update_grid(self, data):
         """Update my grid"""
         print ("UPDATING GRID WITH: ", data)
@@ -75,7 +68,7 @@ class Game:
                 player = Player(data[1], int(data[2]), int(data[3]), self)
                 player.hp = int(data[4])
                 player.ap = int(data[5])
-                self.players[data[1]]=player
+                self.add_player(player)
                 return 1
             elif data[0] == "leave":
                 player = self.players[data[1]]
@@ -91,5 +84,5 @@ class Game:
             else:
                 print("Not a valid command:", data)
                 return 0
-        except(KeyError):
+        except KeyError as e:
             return 0

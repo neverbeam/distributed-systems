@@ -223,8 +223,9 @@ class Server:
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
             try:
                 # Wait for a connection, based on actual seconds
-                self.time_out = (int(time.time()) + 1 - time.time())/self.speedup
-                readable, writable, errored = select.select(self.connections, [], [], self.time_out)
+                # dont sync on whole seconds, but whole second/speedup
+                self.time_out = int(time.time()*self.speedup) + 1 - time.time()*self.speedup
+                readable, writable, errored = select.select(self.connections, [], [], self.time_out/self.speedup)
 
                 # update the peer connections for the main process
                 while not self.peer_queue.empty():
@@ -256,6 +257,10 @@ class Server:
                         self.broadcast_servers(self.tickdata)
                     else:
                         self.broadcast_servers(b"test")
+                        # try:
+                        #     self.broadcast_servers(b"test")
+                        # except BrokenPipeError:
+                        #     pass
 
                     # Change to num_server - 1
                     server_count = 1 # Own pear also in list

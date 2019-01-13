@@ -73,6 +73,12 @@ class Game:
                 player.ap = int(data[5])
                 self.add_player(player)
                 return 1
+            elif data[0] == "addeddragon":
+                player = Dragon(data[1], int(data[2]), int(data[3]), self)
+                player.hp = int(data[4])
+                player.ap = int(data[5])
+                self.add_player(player)
+                return 1
             elif data[0] == "leave":
                 player = self.players[data[1]]
                 self.remove_player(player)

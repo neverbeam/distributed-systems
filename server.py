@@ -27,9 +27,11 @@ class Server:
         self.tickdata = b''
         self.game = Game(self, ID,2,1)
         self.ID_connection = {}
-        self.queue = Queue()
         self.server_queue = Queue()
         self.peer_queue = Queue()
+        filename = 'logfile{}'.format(self.game.ID)
+        self.log = open(filename,'w')
+
         self.start_up(num_dragons, port, peer_port)
 
 
@@ -98,7 +100,6 @@ class Server:
                 break
 
         #Parse the data so that the user contains the whole grid.
-
         # type, ID, x, y, hp , ap,
         data = data[:-3].split(";")
         del data[-1]
@@ -172,27 +173,35 @@ class Server:
         x = random.randint(0,25)
         y = random.randint(0,25)
         dragon = Dragon(str(self.game.ID), x,y, self.game)
-        message =  "{};join;{};{};{};{};{};end".format(time.time(),dragon.ID, dragon.x, dragon.y, dragon.hp, dragon.ap)
+        message =  "{};addeddragon;{};{};{};{};{};end".format(time.time(),dragon.ID, dragon.x, dragon.y, dragon.hp, dragon.ap)
         self.tickdata += message.encode("utf-8")
-        self.game.ID += 1
         self.game.add_player(dragon)
         self.dragonlist.append(dragon)
-        Thread(target=self.run_dragon, args=(self.queue,), daemon = True).start()
+        self.game.ID += 1
 
-    def run_dragon(self, queue):
-        while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
-            time.sleep(2/self.speedup)
-            # Look for player around me
-            for dragon in self.dragonlist:
-                playerlist = []
-                for object in self.game.players.values():
-                    if isinstance(object, Player) and dragon.get_distance(object) < 5:
-                        playerlist.append(object)
+    def dragon_moves(self):
+        """ Let the server create moves for the dragons. """
+        message = ""
+        # If dragon has died, remove it from server.
+        dragonlist = []
+        for dragon in self.dragonlist:
+            if dragon.hp > 0:
+                dragonlist.append(dragon)
+        self.dragonlist = dragonlist
 
-                # randomly select one of the players
-                if playerlist:
-                    message = "{};attack;{};{};end".format(time.time(),dragon.ID, random.choice(playerlist).ID)
-                    queue.put(message)
+        # Look for player around me
+        for dragon in self.dragonlist:
+            playerlist = []
+            for object in self.game.players.values():
+                if isinstance(object, Player) and dragon.get_distance(object) < 5:
+                    playerlist.append(object)
+
+            # randomly select one of the players
+            if playerlist:
+                message = "{};attack;{};{};end".format(time.time(),dragon.ID, random.choice(playerlist).ID)
+                #queue.put(message)
+
+        return message
 
 
 
@@ -271,17 +280,16 @@ class Server:
         message =  "{};join;{};{};{};{};{};end".format(time.time(),player.ID, player.x, player.y, player.hp, player.ap)
         self.tickdata += message.encode("utf-8")
 
-    def remove_client(self, client, log):
+    def remove_client(self, client):
         """ Removing client if disconnection happens"""
         player = self.ID_connection[client]
         playerID = player.ID
-        message = "{};leave;{};end".format(time.time(), playerID)
 
         if player.hp > 0:
-            self.game.remove_player(player)
+            #self.game.remove_player(player)
+            message = "{};leave;{};end".format(time.time(), playerID)
             self.tickdata += message.encode("utf-8")
 
-        log.write("disconnection player {} \n".format(playerID))
         self.connections.remove(client)
         print("connection closed")
 
@@ -293,8 +301,7 @@ class Server:
 
     def read_ports(self):
         """ Read the sockets for new connections or player noticeses."""
-        filename = 'logfile{}'.format(self.game.ID)
-        log = open(filename,'w')
+        log = self.log
 
         self.time_out = self.check_alive
         # Game ticks at whole seconds
@@ -329,13 +336,12 @@ class Server:
                     print("No message received")
 
 
-                    # Sync all messages with out servers.
-                    # See if a dragon move needs to be made. TODO Just make dragon moves here
-                    while not self.queue.empty():
-                        data = self.queue.get()
-                        self.tickdata += (data).encode('utf-8')
-                        self.queue.task_done()
+                    # Make some dragon moves.
+                    dragon_data = self.dragon_moves()
+                    if dragon_data:
+                        self.tickdata += (dragon_data).encode('utf-8')
 
+                    # Always send a message, just send test message if nothing need to ben synced.
                     if self.tickdata:
                         self.broadcast_servers(self.tickdata)
                     else:
@@ -394,7 +400,7 @@ class Server:
                             if data:
                                 self.tickdata += ((str(time.time())+';').encode('utf-8') + data)
                             else: #connection has closed
-                                self.remove_client(client, log)
+                                self.remove_client(client)
 
 
             # Handling stopping servers and closing connections.
@@ -476,7 +482,7 @@ if __name__ == '__main__':
     num_dragons = int(sys.argv[9])
 
     # Setup a new server
-    s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, 
+    s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive,
         ID=server_id, lat=lat, lng=lng, num_dragons=num_dragons)
     print("Created server process " + str(client_port))
     # tell the distributor you exist

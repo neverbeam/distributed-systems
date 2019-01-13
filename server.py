@@ -37,7 +37,7 @@ class Server:
 
 
     def start_up(self, num_dragons, port=10000, peer_port=10100):
-        """ Create an server for das game. """
+        """ Create an server for das game. Each server will maintain a number of dragons."""
         # Create a TCP/IP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -119,8 +119,8 @@ class Server:
 
         #print ( "Server succesfully received grid ")
 
-    # tell the distributor you exist, and get back list of your peers, and connect with peers
     def tell_distributor(self, distr_port):
+        """tell the distributor you exist, and get back list of your peers, and connect with peers"""
         self.distr_port = distr_port
 
         # create socket for single communication with distributor
@@ -141,9 +141,6 @@ class Server:
             dist_mess = message.split("|")
             if len(dist_mess) < 2:
                 # ill defined message
-                pass
-            elif dist_mess[1] == 'NO_PEERS':
-                # TODO you have to initialize the grid, because no peers yet
                 pass
             else:
                 # the other parts of the message are his peers ports
@@ -170,6 +167,7 @@ class Server:
 
 
     def create_dragon(self):
+        """ Create a dragon on the battlefield and send dragon to other all players. """
         x = random.randint(0,25)
         y = random.randint(0,25)
         dragon = Dragon(str(self.game.ID), x,y, self.game)
@@ -198,8 +196,7 @@ class Server:
 
             # randomly select one of the players
             if playerlist:
-                message = "{};attack;{};{};end".format(time.time(),dragon.ID, random.choice(playerlist).ID)
-                #queue.put(message)
+                message += "{};attack;{};{};end".format(time.time(),dragon.ID, random.choice(playerlist).ID)
 
         return message
 
@@ -218,7 +215,7 @@ class Server:
             s.sendall(send_mess)
 
     def peer_power_down(self):
-        # close peer connections
+        """close peer connections. """
         for peer_connection in self.peer_connections[1:]:
             peer_connection.shutdown(socket.SHUT_WR)
 
@@ -272,7 +269,6 @@ class Server:
         player = Player(str(self.game.ID), x, y, self.game)
         self.ID_connection[client] = player
         self.game.ID += 1
-        # THIS RESULTS IN DOUBLE SENDING, but you do want to send new connection the whole grid
         self.game.add_player(player)
         self.send_grid(client, player.ID)
 
@@ -362,13 +358,13 @@ class Server:
                             print("Late response from peer")
                         server_count += 1
 
-
                     # Sort the data
                     data = self.tickdata.decode('utf-8')
                     if data:
                         data = data.split("end")[:-1] # Last end will give a empty index
-                        data = sorted(data)
+
                         # Parse data
+                        data = sorted(data, key=lambda x: float(x.partition(';')[0]))
 
                         senddata = []
                         for command in data:
@@ -405,7 +401,7 @@ class Server:
 
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
-                # self.power_down()
+                self.power_down()
                 break
 
         # always power down for right now
@@ -413,9 +409,6 @@ class Server:
         log.close()
         self.power_down()
 
-
-
-    # TODO THIS
     def start_peer_receiving(self):
         """Thread for doing moves + send moves"""
         Thread(target=self.read_peer_ports, daemon = True).start()
@@ -450,7 +443,7 @@ class Server:
                                     self.peer_queue.put(('getgrid', peer))
                                     continue
                                 if data:
-                                    # PUtting data in queue so it can be read by server
+                                    # Putting data in queue so it can be read by server
                                     #print(self.peer_port, " received ", data)
                                     self.server_queue.put(data)
                                 else: #connection has closed
@@ -460,7 +453,7 @@ class Server:
 
             # Handling stopping servers and closing connections.
             except KeyboardInterrupt:
-                # self.power_down()
+                self.power_down()
                 break
 
         # always power down for right now

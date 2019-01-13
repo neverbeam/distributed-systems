@@ -31,8 +31,8 @@ class Client:
         self.queue = Queue()
 
     def receive_grid(self, sock):
+        """ Receive the current state of the grid from the server. """
         try:
-            """ Receive the current state of the grid from the server. """
             self.game = Game.Game(self)
             data = ""
             # Keep receiving until an end has been send. TCP gives in order arrival
@@ -51,16 +51,19 @@ class Client:
                 if playerdata[0] == "Player":
                     player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                     player.hp = int(playerdata[4])
+                    player.max_hp = int(playerdata[4])
                     player.ap = int(playerdata[5])
 
                 elif playerdata[0] == "Dragon":
                     player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                     player.hp = int(playerdata[4])
+                    player.max_hp = int(playerdata[4])
                     player.ap = int(playerdata[5])
 
                 elif playerdata[0] == "Myplayer":
                     player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
                     player.hp = int(playerdata[4])
+                    player.max_hp = int(playerdata[4])
                     player.ap = int(playerdata[5])
                     self.myplayer = player
 
@@ -73,8 +76,8 @@ class Client:
 
         return True
 
-    # talk to the distributor to get a server port to connect to
     def get_server(self, distr_port=11000):
+        """talk to the distributor to get a server port to connect to"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # send a message to the distributor
             s.connect(('localhost', distr_port))
@@ -156,69 +159,63 @@ class Client:
                     # do something with row
                     self.queue.task_done()
 
-
-
             message = ""
-            if self.demo:
-                # DEPRECATED
-                # Get a message from an actual human running the demo program
-                message = input("Create an action:\n")
+            # check if the player should disconnect based on playtime or when hp is low
+            if self.life_time < (time.time() - self.start_time)*self.speedup or self.myplayer.hp <= 0:
+                # Let the server know you want to disconnect
+                print ("DISCONNECTING player", self.myplayer.ID)
+                self.keep_alive = 0
+                continue
+
             else:
-                # check if the player should disconnect based on playtime or when hp is low
-                if self.life_time < (time.time() - self.start_time)*self.speedup or self.myplayer.hp <= 0:
-                    # Let the server know you want to disconnect
-                    print ("DISCONNECTING player", self.myplayer.ID)
+                # This message should be created by an automated system (computer that plays game)
+                time.sleep(1/self.speedup)
+
+                # NOrmal order -> look for heals -> look for attacks -> MOve
+                # Look for heals in space around me
+                playerlist = []
+                dragonlist = []
+                for object in self.game.players.values():
+                    if isinstance(object, Player) and self.myplayer.get_distance(object) < 6:
+                        playerlist.append(object)
+                    elif isinstance(object, Dragon):
+                        dragonlist.append(object)
+
+                if not dragonlist:
+                    print ("Players won!")
                     self.keep_alive = 0
-                    continue
 
-                else:
-                    # This message should be created by an automated system (computer that plays game)
-                    time.sleep(1/self.speedup)
+                for player in playerlist:
+                    if player.hp < 0.5*player.max_hp and player != self.myplayer:
+                        message = "heal;{};{};end".format(self.myplayer.ID, player.ID)
+                        break
 
-                    # NOrmal order -> look for heals -> look for attacks -> MOve
-                    # Look for heals in space around me
-                    playerlist = []
-                    dragonlist = []
-                    for object in self.game.players.values():
-                        if isinstance(object, Player) and self.myplayer.get_distance(object) < 5:
-                            playerlist.append(object)
-                        elif isinstance(object, Dragon):
-                            dragonlist.append(object)
-
-                    if not dragonlist:
-                        self.keep_alive = 0
-
-                    for player in playerlist:
-                        if player.hp < 0.5*player.max_hp and player != self.myplayer:
-                            message = "heal;{};{};end".format(self.myplayer.ID, player.ID)
+                # Message unchanged , no healing done
+                if message == "":
+                    for dragon in dragonlist:
+                        if self.myplayer.get_distance(dragon)<3:
+                            message = "attack;{};{};end".format(self.myplayer.ID, dragon.ID)
                             break
+                # message unchanged, no dragon in place
+                if message == "":
+                    # Find the closest dragon
+                    min_dragon_distance = 60
+                    for dragon in dragonlist:
+                        if self.myplayer.get_distance(dragon) < min_dragon_distance:
+                            min_dragon_distance = self.myplayer.get_distance(dragon)
+                            min_dragon = dragon
 
-                    # Message unchanged , no healing done
-                    if message == "":
-                        for dragon in dragonlist:
-                            if self.myplayer.get_distance(dragon)<3:
-                                message = "attack;{};{};end".format(self.myplayer.ID, dragon.ID)
-                                break
-                    # message unchanged, no dragon in place
-                    if message == "":
-                        # Find the closest dragon
-                        min_dragon_distance = 60
-                        for dragon in dragonlist:
-                            if self.myplayer.get_distance(dragon) < min_dragon_distance:
-                                min_dragon_distance = self.myplayer.get_distance(dragon)
-                                min_dragon = dragon
-
-                        # move to this dragon.
-                        directions = []
-                        if (min_dragon.x-self.myplayer.x)<0:
-                            directions.append("left")
-                        elif (min_dragon.x-self.myplayer.x)>0:
-                            directions.append("right")
-                        elif (min_dragon.y-self.myplayer.y)<0:
-                            directions.append("down")
-                        elif (min_dragon.y-self.myplayer.y)>0:
-                            directions.append("up")
-                        message = "move;{};{};end".format(self.myplayer.ID, np.random.choice(directions)) ### What TODO if move is invalid?
+                    # move to this dragon.
+                    directions = []
+                    if (min_dragon.x-self.myplayer.x)<0:
+                        directions.append("left")
+                    elif (min_dragon.x-self.myplayer.x)>0:
+                        directions.append("right")
+                    elif (min_dragon.y-self.myplayer.y)<0:
+                        directions.append("down")
+                    elif (min_dragon.y-self.myplayer.y)>0:
+                        directions.append("up")
+                    message = "move;{};{};end".format(self.myplayer.ID, np.random.choice(directions))
 
                     #message = "Debug message;, time=" + str(time.time() - self.start_time)
             message_send = self.send_message(message)

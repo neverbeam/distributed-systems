@@ -1,9 +1,3 @@
-"""
-Author: Kevin Rojer 
-Version: 1.0
-Date: 3 December 2018
-"""
-
 import random
 
 class User:
@@ -21,7 +15,6 @@ class User:
 
         if distance > self.maxrange:
             print("Error: Attack not valid! Distance is greater than max.")
-            print(victim.y, victim.x, self.y, self.x, self.ID, victim.ID)
             return 0
         else:
             print("Victim {} hp: {}".format(victim.ID, victim.hp))
@@ -97,5 +90,4 @@ class Player(User):
         else:
             heal_amount = min(self.ap, player.max_hp - player.hp)
             player.hp += heal_amount
-            self.ap -= heal_amount
             return 1

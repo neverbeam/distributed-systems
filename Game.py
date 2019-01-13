@@ -1,9 +1,3 @@
-"""
-Author: Kevin Rojer
-Version: 1.0
-Date: 30 November 2018
-"""
-
 from Player import *
 import client
 

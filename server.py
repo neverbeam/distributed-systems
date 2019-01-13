@@ -105,7 +105,7 @@ class Server:
 
             self.game.add_player(player)
 
-        print ( "Server succesfully received grid ")
+        #print ( "Server succesfully received grid ")
 
     # tell the distributor you exist, and get back list of your peers, and connect with peers
     def tell_distributor(self, distr_port):
@@ -228,7 +228,7 @@ class Server:
             client.sendall(data.encode('utf-8'))
         # Send ending character
         client.sendall(b"end")
-        print("finished sending grid")
+        #print("finished sending grid")
 
     def send_grid_server(self, server):
         """Send the grid to a new server"""
@@ -238,7 +238,7 @@ class Server:
             server.sendall(data.encode('utf-8'))
         # Send ending character
         server.sendall(b"end")
-        print("finished sending grid to SERVER")
+        #print("finished sending grid to SERVER")
 
     def create_player(self, client):
         """Create a player and message this to every body else."""
@@ -252,6 +252,7 @@ class Server:
         player = Player(str(self.game.ID), x, y, self.game)
         self.ID_connection[client] = player
         self.game.ID += 1
+        # THIS RESULTS IN DOUBLE SENDING, but you do want to send new connection the whole grid
         self.game.add_player(player)
         self.send_grid(client, player.ID)
 
@@ -328,10 +329,7 @@ class Server:
                         self.broadcast_servers(self.tickdata)
                     else:
                         self.broadcast_servers(b"test")
-                        # try:
-                        #     self.broadcast_servers(b"test")
-                        # except BrokenPipeError:
-                        #     pass
+
 
                     # Change to num_server - 1
                     server_count = 1 # Own pear also in list
@@ -363,12 +361,12 @@ class Server:
 
                         # Send to clients
                         data = 'end'.join(senddata) + "endupdate"
-                        print("Data that will be broadcasted: ", data)
+                        #print("Data that will be broadcasted: ", data)
                         self.broadcast_clients(data.encode('utf-8'))
 
                     # Some other handling stuff
                     self.tickdata = b''
-                    print("Finished sending my grid to other servers.")
+                    #print("Finished sending my grid to other servers.")
 
                 else:
                     # got a message
@@ -381,7 +379,7 @@ class Server:
                         # Else we have some data
                         else:
                             data = client.recv(64)
-                            print("SERVER RECEIVED", data)
+                            #print("SERVER RECEIVED", data)
                             if data:
                                 self.tickdata += ((str(time.time())+';').encode('utf-8') + data)
                             else: #connection has closed
@@ -436,7 +434,7 @@ class Server:
                                     continue
                                 if data:
                                     # PUtting data in queue so it can be read by server
-                                    print(self.peer_port, " received ", data)
+                                    #print(self.peer_port, " received ", data)
                                     self.server_queue.put(data)
                                 else: #connection has closed
                                     self.remove_peer(peer)
@@ -450,7 +448,6 @@ class Server:
 
         # always power down for right now
         print("Peer server shutting down")
-        log.close()
         time.sleep(1/self.speedup)
         self.peer_power_down()
 

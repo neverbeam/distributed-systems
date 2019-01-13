@@ -137,7 +137,7 @@ class Client:
             # First process server dataself.
             while not self.queue.empty():
                 data = self.queue.get()
-                print( "data from thread:", data)
+                #print( "data from thread:", data)
                 if len(data) > 0:
                     self.game.update_grid(data)
                     # do something with row
@@ -236,7 +236,7 @@ class Client:
 
                 for item in data[:-9].decode('utf-8').split('end'):
                     queue.put(item)
-                print ("message: incomming " + data.decode('utf-8'))
+                #print ("message: incomming " + data.decode('utf-8'))
             except ConnectionResetError:
                 break
 

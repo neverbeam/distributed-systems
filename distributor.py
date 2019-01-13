@@ -33,9 +33,9 @@ class Distributor:
         """ Close down the distributor. """
         self.sock.close()
         if len(self.latencies) > 0:
-            print(self.latencies)
-            print(np.mean(self.latencies))
-            print(np.std(self.latencies))
+            print("latencies are: ", self.latencies)
+            print("Mean latency: ", np.mean(self.latencies))
+            print("Standard deviation latency", np.std(self.latencies))
 
     # add a server port to the server list
     def add_server(self, server_port, peer_port, lat, lng):
@@ -119,7 +119,7 @@ class Distributor:
                                     # send this server port to the client
                                     ret_mess = ('DIST|' + str(server_port) + "|" + distance_str).encode('UTF-8')
                                     conn.sendall(ret_mess)
-                                else: 
+                                else:
                                     # TODO start up a server
                                     conn.sendall(b'NO_SERVER')
 

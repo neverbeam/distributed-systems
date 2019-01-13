@@ -21,12 +21,15 @@ class Game:
 
     def add_player(self, player):
         """ Add players to the grid."""
+        if player.ID in self.players.keys():
+            return
+
         if self.map[player.y][player.x] == "*":
             self.map[player.y][player.x] = player
             self.players[player.ID] = player
             print("Player ({0}) with hp {1} added to the game at position ({2},{3}).".format(player.ID, player.hp, player.x, player.y))
         else:
-            print("Error: Position ({0},{1}) is occupied.".format(player.x, player.y))
+            print("Error: Position ({0},{1}) is occupied with {2}".format(player.x, player.y, self.map[player.y][player.x].ID))
 
     def remove_player(self, player):
         """ Remove players from the grid."""
@@ -40,7 +43,7 @@ class Game:
 
     def update_grid(self, data):
         """Update my grid"""
-        print ("UPDATING GRID WITH: ", data)
+        #print ("UPDATING GRID WITH: ", data)
         # timestamp;move;player;up/down/left/rigth
         data = data.split(";")[1:]
 

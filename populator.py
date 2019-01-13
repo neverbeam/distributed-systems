@@ -1,12 +1,3 @@
-# import subprocess
-# import os
-
-# if __name__ == '__main__':
-#   # get path to current running file
-#   path_to_here = os.path.dirname(os.path.abspath( __file__ )) + '/'
-#   # subprocess.call('python client.py', shell=True)
-#   subprocess.call('python3 ' + path_to_here + 'client.py')
-
 import multiprocessing as mp
 from distributor import Distributor
 from server import Server
@@ -61,7 +52,7 @@ class Populator:
     # creates a running server
     def server_process(self, client_port, peer_port, distr_port, run_time, check_alive, ID, lat, lng, num_dragons=1):
         # Setup a new server
-        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, 
+        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive,
             ID=ID, lat=lat, lng=lng, num_dragons=num_dragons, speedup=self.speedup, printing=self.printing)
         print("Created server process " + str(client_port))
         # tell the distributor you exist
@@ -88,7 +79,7 @@ class Populator:
         self.printing = True
         # set a speedup factor for testing
         self.speedup = 2.0
-        
+
         # initialize the distributor
         dp = 11000
         d = mp.Process(target=self.distributor_process, args=(dp, 23))
@@ -179,7 +170,7 @@ class Populator:
                 # run a server on those latitude longitude
                 server_num = (i*num_root_servers)+j
                 # create servers that are closed when all players are done
-                s = mp.Process(target=self.server_process, args=(10000+server_num, 10100+server_num, dp, 
+                s = mp.Process(target=self.server_process, args=(10000+server_num, 10100+server_num, dp,
                         num_players*2.5+1, 1, server_num*(num_players+1), sy, sx))
                 s.start()
                 servers.append(s)

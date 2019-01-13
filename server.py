@@ -221,7 +221,10 @@ class Server:
     def peer_power_down(self):
         # close peer connections
         for peer_connection in self.peer_connections[1:]:
-            peer_connection.shutdown(socket.SHUT_WR)
+            try:
+                peer_connection.shutdown(socket.SHUT_WR)
+            except OSError:
+                print("Peer socket already closed.")
 
     def broadcast_clients(self, data):
         """ Broadcast the message from 1 client to other clients"""
@@ -333,7 +336,7 @@ class Server:
                         self.broadcast_servers(b'WIN DRAGONS')
                     elif dragon_total == 0:
                         print("PLAYERS WIN THE GAME")
-                        log.write("FOUND WIN PLAYERS" + '\n')
+                        log.write("WIN PLAYERS" + '\n')
                         self.life_time = 0
                         self.broadcast_servers(b'WIN PLAYERS')
                     print(self.game.ID, client_total, dragon_total)

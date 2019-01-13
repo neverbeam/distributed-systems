@@ -11,6 +11,7 @@ import sys
 
 class Client:
     def __init__(self, distr_port=11000, demo=False, life_time=1000, lat=1, lng=1, speedup=1.0, printing=True):
+        self.joined_game = False
         self.demo = demo
         self.life_time = life_time
         self.start_time = time.time()
@@ -24,10 +25,19 @@ class Client:
         self.lat = lat
         self.lng = lng
         self.latency = 0
-        connected = False
-        while not connected:
-            server_port = self.get_server(distr_port)
-            self.sock, connected = self.connect_server(port=server_port)
+        found = False
+        while not found:
+            server_port = self.get_server(self.distr_port)
+            if server_port == 0:
+                # set found to true to stop searching, because there is no distributor
+                found = True
+            else:
+                # try and connect to the given server
+                self.sock, found = self.connect_server(port=server_port)
+        # do not let the client play a game if there is no game
+        if server_port != 0:
+            # no distributor up and running
+            self.joined_game = True
         self.queue = Queue()
 
     def receive_grid(self, sock):
@@ -106,6 +116,10 @@ class Client:
 
     def connect_server(self, port=10000):
         """ Connect to the server. """
+        # this happens when there is no distributor
+        if port == 0:
+            return 0, False
+
         self.port = port
 
         # Create a TCP/IP socket
@@ -114,17 +128,21 @@ class Client:
         # Connect the socket to the port where the server is listening
         server_address = ('localhost', port)
         print('Client connecting to {} port {}'.format(*server_address))
-        sock.connect(server_address)
-        success = self.receive_grid(sock)
-
-        return sock, success
+        # see if it is still up
+        try:
+            sock.connect(server_address)
+            success = self.receive_grid(sock)
+            return sock, success
+        except ConnectionRefusedError:
+            return sock, False
 
     def disconnect_server(self):
         """ disconnect from the server"""
         # close the socket
         try:
             self.sock.shutdown(socket.SHUT_WR)
-        except OSError:
+        except:
+            # lots of things can go wrong here, just catch them all
             pass
 
     def send_message(self, message):
@@ -230,14 +248,31 @@ class Client:
                 self.queue = Queue()
                 self.start_receiving()
 
+                found = False
+                while not found:
+                    server_port = self.get_server(self.distr_port)
+                    if server_port == 0:
+                        # set found to true to stop searching, because there is no distributor
+                        found = True
+                    else:
+                        # try and connect to the given server
+                        self.sock, found = self.connect_server(port=server_port)
+                        self.queue = Queue()
+                        self.start_receiving()
+                # do not let the client play a game if there is no game
+                if server_port == 0:
+                    # no distributor up and running
+                    self.keep_alive = False
+
+
         self.disconnect_server()
 
     def server_input(self, queue):
         """ Check for server input. """
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
-            readable, writable, errored = select.select([self.sock], [], [])
-
             try:
+                readable, writable, errored = select.select([self.sock], [], [])
+
                 data = b''
                 while True:
                     data += self.sock.recv(64)
@@ -250,7 +285,8 @@ class Client:
                 for item in data[:-9].decode('utf-8').split('end'):
                     queue.put(item)
                 #print ("message: incomming " + data.decode('utf-8'))
-            except ConnectionResetError:
+            except:
+                # lots of things can go wrong here, just catch them all
                 break
 
 
@@ -265,12 +301,15 @@ if __name__ == "__main__":
     # Connect to the host
     c = Client(distr_port=distr_port, demo=False, life_time=play_time, lat=lat, lng=lng)
     print("Created client process")
-    # Receive input from servers
-    c.start_receiving()
-    # let the client do moves until its playtime is up
-    c.player_moves()
+    if c.joined_game:
+        # Receive input from servers
+        c.start_receiving()
+        # let the client do moves until its playtime is up
+        c.player_moves()
 
-    # remove the player from the server
-    c.disconnect_server()
-    time.sleep(2) #Need a timing here, to prevent too quick shutdown
-    print("Closing client process connected to server on port " +str(c.port))
+        # remove the player from the server
+        c.disconnect_server()
+        time.sleep(2) #Need a timing here, to prevent too quick shutdown
+        print("Closing client process connected to server on port " +str(c.port))
+    else:
+        print("No game available, try again later :(")

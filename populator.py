@@ -37,7 +37,7 @@ class Populator:
             if experiment_num == 1:
                 self.test_setup_2s_2c()
             elif experiment_num == 2:
-                self.wow_setup(1)
+                self.wow_setup()
             elif experiment_num == 3:
                 self.test_setup_geo(experiment_arg, 100)
             elif experiment_num == 4:
@@ -48,14 +48,17 @@ class Populator:
         # Connect to the host
         c = Client(distr_port=distr_port, demo=demo, life_time=play_time, lat=lat, lng=lng, speedup=self.speedup, printing=self.printing)
         print("Created client process")
-        # Receive input from servers
-        c.start_receiving()
-        # let the client do moves until its playtime is up
-        c.player_moves()
+        if c.joined_game:
+            # Receive input from servers
+            c.start_receiving()
+            # let the client do moves until its playtime is up
+            c.player_moves()
 
-        # remove the player from the server
-        c.disconnect_server()
-        print("Closing client process connected to server on port " + str(c.port))
+            # remove the player from the server
+            c.disconnect_server()
+            print("Closing client process connected to server on port " + str(c.port))
+        else:
+            print("No game available")
 
 
     # creates a running server
@@ -136,7 +139,8 @@ class Populator:
         servers = []
         for i in range(num_servers):
             # run a server
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 40*self.speedup, 1, i*100, 1, 1, 1))
+            server_id = i*1000
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 40*self.speedup, 1, server_id, 1, 1, 1))
             s.start()
             servers.append(s)
             time.sleep(0.2)
@@ -208,39 +212,67 @@ class Populator:
 
 
     # use the game trace to create clients with a given lifespan
-    def wow_setup(self, join_rate=2):
-        clients = []
-        populating = True
-        dp = 11000
-        play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
+    def wow_setup(self):
+        # setup for running game trace
+        trace_start = time.time()
+        sim_time = 60
+        join_step = 1
+        num_servers = 5
+        dragons_per_server = 4
+        self.printing = True
 
         # create a distributor that terminates after all servers are done
-        d = mp.Process(target=self.distributor_process, args=(dp, 52))
+        dp = 11000
+        d = mp.Process(target=self.distributor_process, args=(dp, sim_time*self.speedup))
         d.start()
         time.sleep(0.5)
 
-        # create a server setup
-        s1 = mp.Process(target=self.server_process, args=(10000, 10100, dp, 50, 1, 1, 1, 1))
-        s1.start()
+        servers = []
+        logfiles = []
+        for i in range(num_servers):
+            # run a server
+            server_id = i*1000
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, (sim_time-5)*self.speedup, 1, server_id, 1, 1, dragons_per_server))
+            s.start()
+            servers.append(s)
+            logfiles.append("logfile"+str(server_id))
+            time.sleep(0.2)
 
         # start populating
-        while populating:
+        clients = []
+        play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
+        populating = True
+        # keep anding players until end of simulation
+        while (trace_start + (sim_time-10)*self.speedup) > time.time():
             # get a random lifetime from the wow distribution
-            playtime = play_dist[random.randint(0, len(play_dist)-1)]
+            playtime = play_dist[random.randint(0, len(play_dist)-1)] / 100.0
+            print(playtime)
             # create the client
-            c = mp.Process(target=self.client_process, args=(dp,playtime,1,1))
+            c = mp.Process(target=self.client_process, args=(dp,playtime*self.speedup,1,1))
             c.start()
+            clients.append(c)
             # wait the set amount of time between adding players
-            time.sleep(join_rate)
-            # TODO some termination thing here
-            if len(clients) > 10:
-                populating = False
+            time.sleep(join_step)
 
-        # close all still opened connections
+        # close all still opened server connections
+        for s in servers:
+            s.join()
+        # close all still opened client connections
         for c in clients:
             c.join()
-        # close the servers
-        s1.join()
+        d.join()
+
+        # analyze who won
+        all_last_messages = ""
+        for logfile in logfiles:
+            with open(logfile, 'r') as f:
+                lines = f.read().splitlines()
+                last_messages = " ".join(lines[-100:-1])
+                all_last_messages += last_messages
+        # to make sure a faulty server does not mess with results
+        pwin = all_last_messages.count("WIN PLAYERS")
+        dwin = all_last_messages.count("WIN DRAGONS")
+        print("And the winner is: ", pwin, dwin)
 
 
     # DEPRECATED, DOES NOT WORK ANYMORE

@@ -25,6 +25,7 @@ class Server:
             sys.stdout = open(os.devnull, 'w')
         self.check_alive = check_alive
         self.tickdata = b''
+        self.game_started = False
         self.game = Game(self, ID,2,1)
         self.ID_connection = {}
         self.server_queue = Queue()
@@ -217,7 +218,10 @@ class Server:
     def peer_power_down(self):
         """close peer connections. """
         for peer_connection in self.peer_connections[1:]:
-            peer_connection.shutdown(socket.SHUT_WR)
+            try:
+                peer_connection.shutdown(socket.SHUT_WR)
+            except OSError:
+                print("Peer socket already closed.")
 
     def broadcast_clients(self, data):
         """ Broadcast the message from 1 client to other clients"""
@@ -233,6 +237,8 @@ class Server:
                 server.sendall(data)
             except ConnectionResetError:
                 print("This peer got removed ", str(server))
+            except BrokenPipeError:
+                print("This peer game ended ", str(server))
 
     def send_grid(self, client, theirplayerID):
         """Send the grid to new players or new server"""
@@ -309,12 +315,42 @@ class Server:
                 self.time_out = int(time.time()*self.speedup) + 1 - time.time()*self.speedup
                 readable, writable, errored = select.select(self.connections, [], [], self.time_out/self.speedup)
 
+                # check for a game end scenario, where either all players or dragons are dead
+                if self.game_started:
+                    client_total = 0
+                    dragon_total = 0
+                    for object in self.game.players.values():
+                        if isinstance(object, Player):
+                            client_total += 1
+                        elif isinstance(object, Dragon):
+                            dragon_total += 1
+                    # if either is 0, send message to peers and set life time to 0
+                    if client_total == 0:
+                        print("DRAGONS WIN THE GAME")
+                        log.write("WIN DRAGONS" + '\n')
+                        self.life_time = 0
+                        self.broadcast_servers(b'WIN DRAGONS')
+                    elif dragon_total == 0:
+                        print("PLAYERS WIN THE GAME")
+                        log.write("WIN PLAYERS" + '\n')
+                        self.life_time = 0
+                        self.broadcast_servers(b'WIN PLAYERS')
+                    print(self.game.ID, client_total, dragon_total)
+
                 # update the peer connections for the main process
                 while not self.peer_queue.empty():
                     data = self.peer_queue.get()
                     if data[0] == 'getgrid':
                         self.send_grid_server(data[1])
                         self.peer_queue.task_done()
+                    elif (data == b'WIN PLAYERS'):
+                        print("PLAYERS WIN THE GAME (told by other server)")
+                        log.write("WIN PLAYERS" + '\n')
+                        self.life_time = 0
+                    elif (data == b'WIN DRAGONS'):
+                        print("DRAGONS WIN THE GAME (told by other server)")
+                        log.write("WIN DRAGONS" + '\n')
+                        self.life_time = 0
                     else:
                         peer_connection = data[0]
                         if peer_connection not in self.peer_connections:
@@ -389,6 +425,9 @@ class Server:
                             connection, client_address = self.sock.accept()
                             self.create_player(connection)
                             self.connections.append(connection)
+                            # start the game if this is the first player to join
+                            if not self.game_started:
+                                self.game_started = True
                         # Else we have some data
                         else:
                             data = client.recv(64)
@@ -442,6 +481,8 @@ class Server:
                                 if data == b'getgrid':
                                     self.peer_queue.put(('getgrid', peer))
                                     continue
+                                if (data == b'WIN PLAYERS') or (data == b'WIN DRAGONS'):
+                                    self.life_time = 0
                                 if data:
                                     # Putting data in queue so it can be read by server
                                     #print(self.peer_port, " received ", data)

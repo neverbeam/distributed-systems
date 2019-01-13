@@ -124,19 +124,19 @@ class Populator:
 
 
     # runs a test version pushing the bounds of player/server/player total
-    def test_setup_max(self, num_servers=5, num_clients=20, speedup=1.0):
+    def test_setup_max(self, num_servers=2, num_clients=50, speedup=1.0):
         self.speedup = speedup
         self.printing = True
         # initialize the distributor
         dp = 11000
-        d = mp.Process(target=self.distributor_process, args=(dp, 25*self.speedup))
+        d = mp.Process(target=self.distributor_process, args=(dp, 45*self.speedup))
         d.start()
         time.sleep(0.3)
 
         servers = []
         for i in range(num_servers):
             # run a server
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20*self.speedup, 1, i*100, 1, 1))
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 40*self.speedup, 1, i*100, 1, 1, 1))
             s.start()
             servers.append(s)
             time.sleep(0.2)
@@ -148,7 +148,7 @@ class Populator:
             c = mp.Process(target=self.client_process, args=(dp, 15*self.speedup, 1, 1))
             c.start()
             clients.append(c)
-            time.sleep(0.2)
+            time.sleep(0.0)
 
         # wait until the client processes terminate
         for c in clients:

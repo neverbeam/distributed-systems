@@ -6,59 +6,72 @@ from queue import Queue
 import Game
 from Player import *
 import numpy as np
+import os
+import sys
 
 class Client:
-    def __init__(self, distr_port=11000, demo=False, life_time=1000, lat=1, lng=1, speedup=1.0):
+    def __init__(self, distr_port=11000, demo=False, life_time=1000, lat=1, lng=1, speedup=1.0, printing=True):
         self.demo = demo
         self.life_time = life_time
         self.start_time = time.time()
         self.speedup = speedup
+        # do not print to terminal for experiments
+        self.printing = printing
+        if not self.printing:
+            sys.stdout = open(os.devnull, 'w')
         self.keep_alive = True
         self.distr_port = distr_port
         self.lat = lat
         self.lng = lng
         self.latency = 0
-        server_port = self.get_server(distr_port)
-        self.sock = self.connect_server(port=server_port)
+        connected = False
+        while not connected:
+            server_port = self.get_server(distr_port)
+            self.sock, connected = self.connect_server(port=server_port)
         self.queue = Queue()
 
     def receive_grid(self, sock):
-        """ Receive the current state of the grid from the server. """
-        self.game = Game.Game(self)
-        data = ""
-        # Keep receiving until an end has been send. TCP gives in order arrival
-        while True:
-            data += sock.recv(128).decode('utf-8')
-            if data[-3:] == "end":
-                break
+        try:
+            """ Receive the current state of the grid from the server. """
+            self.game = Game.Game(self)
+            data = ""
+            # Keep receiving until an end has been send. TCP gives in order arrival
+            while True:
+                data += sock.recv(128).decode('utf-8')
+                if data[-3:] == "end":
+                    break
 
-        #Parse the data so that the user contains the whole grid.
+            #Parse the data so that the user contains the whole grid.
 
-        # type, ID, x, y, hp , ap,
-        data = data[:-3].split(";")
-        del data[-1]
-        for i in range(0, len(data), 6):
-            playerdata = data[i:i+6]
-            if playerdata[0] == "Player":
-                player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
-                player.hp = int(playerdata[4])
-                player.ap = int(playerdata[5])
+            # type, ID, x, y, hp , ap,
+            data = data[:-3].split(";")
+            del data[-1]
+            for i in range(0, len(data), 6):
+                playerdata = data[i:i+6]
+                if playerdata[0] == "Player":
+                    player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
+                    player.hp = int(playerdata[4])
+                    player.ap = int(playerdata[5])
 
-            elif playerdata[0] == "Dragon":
-                player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
-                player.hp = int(playerdata[4])
-                player.ap = int(playerdata[5])
+                elif playerdata[0] == "Dragon":
+                    player = Dragon(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
+                    player.hp = int(playerdata[4])
+                    player.ap = int(playerdata[5])
 
-            elif playerdata[0] == "Myplayer":
-                player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
-                player.hp = int(playerdata[4])
-                player.ap = int(playerdata[5])
-                self.myplayer = player
+                elif playerdata[0] == "Myplayer":
+                    player = Player(playerdata[1], int(playerdata[2]), int(playerdata[3]) ,self.game)
+                    player.hp = int(playerdata[4])
+                    player.ap = int(playerdata[5])
+                    self.myplayer = player
 
-            self.game.add_player(player)
+                self.game.add_player(player)
 
-        print ( "succesfully received grid")
+            print ( "succesfully received grid")
+        except ConnectionResetError:
+            print("Retrying connection setup between client to server")
+            return False
 
+        return True
 
     # talk to the distributor to get a server port to connect to
     def get_server(self, distr_port=11000):
@@ -102,9 +115,9 @@ class Client:
         server_address = ('localhost', port)
         print('Client connecting to {} port {}'.format(*server_address))
         sock.connect(server_address)
-        self.receive_grid(sock)
+        success = self.receive_grid(sock)
 
-        return sock
+        return sock, success
 
     def disconnect_server(self):
         """ disconnect from the server"""

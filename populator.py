@@ -28,6 +28,8 @@ class Populator:
         self.keep_alive = True
         self.servers = {}
         self.clients = {}
+        self.speedup = 1.0
+        self.printing = False
 
         if manual:
             self.get_input()
@@ -42,9 +44,9 @@ class Populator:
                 self.test_setup_max()
 
     # creates a running client
-    def client_process(self, distr_port, play_time, lat, lng, speedup=1.0, demo=False):
+    def client_process(self, distr_port, play_time, lat, lng, demo=False):
         # Connect to the host
-        c = Client(distr_port=distr_port, demo=demo, life_time=play_time, lat=lat, lng=lng, speedup=speedup)
+        c = Client(distr_port=distr_port, demo=demo, life_time=play_time, lat=lat, lng=lng, speedup=self.speedup, printing=self.printing)
         print("Created client process")
         # Receive input from servers
         c.start_receiving()
@@ -57,9 +59,10 @@ class Populator:
 
 
     # creates a running server
-    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive, ID, lat, lng, speedup=1.0):
+    def server_process(self, client_port, peer_port, distr_port, run_time, check_alive, ID, lat, lng, num_dragons=1):
         # Setup a new server
-        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, ID=ID, lat=lat, lng=lng, speedup=speedup)
+        s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, 
+            ID=ID, lat=lat, lng=lng, num_dragons=num_dragons, speedup=self.speedup, printing=self.printing)
         print("Created server process " + str(client_port))
         # tell the distributor you exist
         s.tell_distributor(distr_port)
@@ -69,8 +72,10 @@ class Populator:
 
 
     # creates a running distributor
-    def distributor_process(self, listen_port, run_time, speedup=1.0):
-        d = Distributor(port=listen_port, life_time=run_time, speedup=speedup)
+    def distributor_process(self, listen_port, run_time):
+        if not self.printing:
+            sys.stdout = open(os.devnull, 'w')
+        d = Distributor(port=listen_port, life_time=run_time, speedup=self.speedup, printing=self.printing)
         print("Created distributor process " + str(listen_port))
         # let the distributor listen to all incoming messages until lifetime is up
         d.read_ports()
@@ -79,35 +84,33 @@ class Populator:
 
     # runs a test version that should work (has 2 players and 2 servers)
     def test_setup_2s_2c(self):
-        # use this to prevent printing to the terminal (dont overflow it)
-        f = open(os.devnull, 'w')
-        sys.stdout = f
-
+        # allow printing to terminal
+        self.printing = True
         # set a speedup factor for testing
-        speedup = 4.0
+        self.speedup = 2.0
         
         # initialize the distributor
         dp = 11000
-        d = mp.Process(target=self.distributor_process, args=(dp, 23, speedup))
+        d = mp.Process(target=self.distributor_process, args=(dp, 23))
         d.start()
-        time.sleep(0.3/speedup)
+        time.sleep(0.3/self.speedup)
 
         servers = []
         num_servers = 2
         for i in range(num_servers):
             # run a server
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1, i*100, 1, 1, speedup))
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1, i*100, 1, 1, 2.3))
             s.start()
             servers.append(s)
-            time.sleep(0.1/speedup)
+            time.sleep(0.1/self.speedup)
 
         # spawn a client process
-        c1 = mp.Process(target=self.client_process, args=(dp, 15, 1, 1, speedup))
+        c1 = mp.Process(target=self.client_process, args=(dp, 15, 1, 1))
         c1.start()
 
         # spawn another client process
-        time.sleep(1/speedup)
-        c2 = mp.Process(target=self.client_process, args=(dp, 10, 1, 1, speedup))
+        time.sleep(1/self.speedup)
+        c2 = mp.Process(target=self.client_process, args=(dp, 10, 1, 1))
         c2.start()
 
         # wait until the client processes terminate
@@ -121,29 +124,31 @@ class Populator:
 
 
     # runs a test version pushing the bounds of player/server/player total
-    def test_setup_max(self, num_servers=4, num_clients=3, speedup=3.0):
+    def test_setup_max(self, num_servers=5, num_clients=20, speedup=1.0):
+        self.speedup = speedup
+        self.printing = True
         # initialize the distributor
         dp = 11000
-        d = mp.Process(target=self.distributor_process, args=(dp, 30, speedup))
+        d = mp.Process(target=self.distributor_process, args=(dp, 25*self.speedup))
         d.start()
         time.sleep(0.3)
 
         servers = []
         for i in range(num_servers):
             # run a server
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20, 1, i*100, 1, 1, speedup))
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 20*self.speedup, 1, i*100, 1, 1))
             s.start()
             servers.append(s)
-            time.sleep(2/speedup)
+            time.sleep(0.2)
 
         time.sleep(0.2)
         clients = []
         for i in range(num_clients):
             # spawn a client process
-            c = mp.Process(target=self.client_process, args=(dp, 15, 1, 1, speedup))
+            c = mp.Process(target=self.client_process, args=(dp, 15*self.speedup, 1, 1))
             c.start()
             clients.append(c)
-            time.sleep(0.2/speedup)
+            time.sleep(0.2)
 
         # wait until the client processes terminate
         for c in clients:

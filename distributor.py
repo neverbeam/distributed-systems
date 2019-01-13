@@ -4,14 +4,20 @@ import random
 import time
 import math
 import numpy as np
+import os
+import sys
 
 class Distributor:
-    def __init__(self, port=11000, life_time=1100, printing=True, speedup=1):
+    def __init__(self, port=11000, life_time=1100, speedup=1, printing=True):
         # setup communication on this port
         self.own_port = port
         self.life_time = life_time
         self.start_time = time.time()
         self.speedup = speedup
+        # do not print to terminal for experiments
+        self.printing = printing
+        if not self.printing:
+            sys.stdout = open(os.devnull, 'w')
         # list of active game servers
         self.servers = []
         self.init_socket()

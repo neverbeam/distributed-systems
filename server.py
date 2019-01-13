@@ -5,11 +5,12 @@ import time
 from Game import *
 from queue import Queue, Empty
 from threading import Thread
-
+import os
+import sys
 
 
 class Server:
-    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1, ID=0, lat=1, lng=1, speedup=1.0):
+    def __init__(self, port=10000, peer_port=10100, life_time=None, check_alive=1, ID=0, lat=1, lng=1, num_dragons=1, speedup=1.0, printing=True):
         # we could also place object on a 25x25 grid
         self.port = port
         self.peer_port = peer_port
@@ -18,6 +19,10 @@ class Server:
         self.life_time = life_time
         self.start_time = time.time()
         self.speedup = speedup
+        # do not print to terminal for experiments
+        self.printing = printing
+        if not self.printing:
+            sys.stdout = open(os.devnull, 'w')
         self.check_alive = check_alive
         self.tickdata = b''
         self.game = Game(self, ID,2,1)
@@ -25,11 +30,11 @@ class Server:
         self.queue = Queue()
         self.server_queue = Queue()
         self.peer_queue = Queue()
-        self.start_up(port, peer_port)
+        self.start_up(num_dragons, port, peer_port)
 
 
 
-    def start_up(self, port=10000, peer_port=10100):
+    def start_up(self, num_dragons, port=10000, peer_port=10100):
         """ Create an server for das game. """
         # Create a TCP/IP socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -48,8 +53,14 @@ class Server:
                 if self.port >= 100000:
                     raise OSError('Cant find a suitable server port.')
 
+        # create the set number of dragons for this server
         self.dragonlist = []
-        self.create_dragon()
+        for i in range(int(num_dragons)):
+            self.create_dragon()
+        # if number was float, give the residual a chance to become a dragon
+        # meaning: 3.2 has a 20% chance of creating a 4th dragon
+        if random.random() < (num_dragons%1):
+            self.create_dragon()
 
         # Listen for incoming connections
         self.sock.listen(30)
@@ -332,7 +343,7 @@ class Server:
 
 
                     # Change to num_server - 1
-                    server_count = 1 # Own pear also in list
+                    server_count = 1 # Own peer also in list
                     while not server_count == len(self.peer_connections):
                         try:
                             data = self.server_queue.get(block=True, timeout=0.1/self.speedup)
@@ -342,7 +353,7 @@ class Server:
                                 self.tickdata += data
                             self.server_queue.task_done()
                         except Empty:
-                            print("Peer got removed?")
+                            print("Late response from peer")
                         server_count += 1
 
 
@@ -462,9 +473,11 @@ if __name__ == '__main__':
     server_id = int(sys.argv[6])
     lat = int(sys.argv[7])
     lng = int(sys.argv[8])
+    num_dragons = int(sys.argv[9])
 
     # Setup a new server
-    s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, ID=server_id, lat=lat, lng=lng)
+    s = Server(port=client_port, peer_port=peer_port, life_time=run_time, check_alive=check_alive, 
+        ID=server_id, lat=lat, lng=lng, num_dragons=num_dragons)
     print("Created server process " + str(client_port))
     # tell the distributor you exist
     s.tell_distributor(distr_port)

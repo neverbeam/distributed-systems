@@ -206,64 +206,88 @@ class Populator:
     def wow_setup(self):
         # setup for running game trace
         trace_start = time.time()
-        sim_time = 60
-        join_step = 1
+        sim_time = 900
+        join_steps = [0.5, 0.7, 1]
         num_servers = 5
-        dragons_per_server = 4
-        self.printing = True
+        dragons_per_server = 1
+        self.printing = False
 
-        # create a distributor that terminates after all servers are done
-        dp = 11000
-        d = mp.Process(target=self.distributor_process, args=(dp, sim_time*self.speedup))
-        d.start()
-        time.sleep(0.5)
+        for join_step in join_steps:
+            with open("join_step_results.txt", "a") as join_step_results:
+                join_step_results.write("--------------\njoin step: "+str(join_step))
+            self.speedup = join_step/2
+            for n in range(1):
+                try: 
+                    # create a distributor that terminates after all servers are done
+                    dp = 11000
+                    d = mp.Process(target=self.distributor_process, args=(dp, sim_time*self.speedup))
+                    d.start()
+                    time.sleep(0.5)
 
-        servers = []
-        logfiles = []
-        for i in range(num_servers):
-            # run a server
-            server_id = i*1000
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, (sim_time-5)*self.speedup, 1, server_id, 1, 1, dragons_per_server))
-            s.start()
-            servers.append(s)
-            logfiles.append("logfile"+str(server_id))
-            time.sleep(0.2)
+                    servers = []
+                    logfiles = []
+                    for i in range(num_servers):
+                        # run a server
+                        server_id = i*1000
+                        s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, (sim_time-5)*self.speedup, 1, server_id, 1, 1, dragons_per_server))
+                        s.start()
+                        servers.append(s)
+                        logfiles.append("logfile"+str(server_id))
+                        time.sleep(0.2)
 
-        # start populating
-        clients = []
-        play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
-        populating = True
-        # keep anding players until end of simulation
-        while (trace_start + (sim_time-10)*self.speedup) > time.time():
-            # get a random lifetime from the wow distribution
-            playtime = play_dist[random.randint(0, len(play_dist)-1)] / 100.0
-            print(playtime)
-            # create the client
-            c = mp.Process(target=self.client_process, args=(dp,playtime*self.speedup,1,1))
-            c.start()
-            clients.append(c)
-            # wait the set amount of time between adding players
-            time.sleep(join_step)
+                    # start populating
+                    clients = []
+                    play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
+                    populating = True
+                    # keep adding players until end of simulation
+                    while (trace_start + (sim_time-10)*self.speedup) > time.time():
+                        # get a random lifetime from the wow distribution
+                        playtime = play_dist[random.randint(0, len(play_dist)-1)] / 100.0
+                        # create the client
+                        c = mp.Process(target=self.client_process, args=(dp,playtime*self.speedup,1,1))
+                        c.start()
+                        clients.append(c)
+                        # wait the set amount of time between adding players
+                        time.sleep(join_step)
 
-        # close all still opened server connections
-        for s in servers:
-            s.join()
-        # close all still opened client connections
-        for c in clients:
-            c.join()
-        d.join()
+                    # close all still opened server connections
+                    for s in servers:
+                        s.join()
+                    # close all still opened client connections
+                    for c in clients:
+                        c.join()
+                    d.join()
+                except OSError:
+                    print("Broke off because of to much clients. ")
 
-        # analyze who won
-        all_last_messages = ""
-        for logfile in logfiles:
-            with open(logfile, 'r') as f:
-                lines = f.read().splitlines()
-                last_messages = " ".join(lines[-100:-1])
-                all_last_messages += last_messages
-        # to make sure a faulty server does not mess with results
-        pwin = all_last_messages.count("WIN PLAYERS")
-        dwin = all_last_messages.count("WIN DRAGONS")
-        print("And the winner is: ", pwin, dwin)
+                time.sleep(10)
+                # analyze who won
+                all_last_messages = ""
+                dragon_win = 0
+                player_win = 0
+                invalids = 0
+                for logfile in logfiles:
+                    with open(logfile, 'r') as f:
+                        lines = f.read().splitlines()
+                        for line in lines:
+                            if line == "WIN DRAGONS":
+                                dragon_win += 1
+                                break
+                            elif line == "WIN PLAYERS":
+                                player_win += 1
+                                break
+                            elif line == "invalid update":
+                                invalids += 1
+                # show who won
+                with open("join_rate_results.txt", "a") as join_step_results:
+                    if dragon_win == player_win:
+                        join_step_results.write("Draw")
+                    elif dragon_win > player_win:
+                        join_step_results.write("Dragon win")
+                    else:
+                        join_step_results.write("Player win")
+                    join_step_results.write(invalids)
+
 
 
     # DEPRECATED, DOES NOT WORK ANYMORE

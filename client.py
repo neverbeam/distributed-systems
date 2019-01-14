@@ -25,15 +25,22 @@ class Client:
         self.lat = lat
         self.lng = lng
         self.latency = 0
-        found = False
-        while not found:
+        retries = 0
+        max_retries = 5
+        while retries < max_retries:
             server_port = self.get_server(self.distr_port)
             if server_port == 0:
-                # set found to true to stop searching, because there is no distributor
-                found = True
+                # set max_retries to stop searching, because there is no distributor
+                retries = max_retries
             else:
                 # try and connect to the given server
                 self.sock, found = self.connect_server(port=server_port)
+                # if given server was not valid, try for another
+                if not found:
+                    retries += 1
+                else:
+                    # found one, stop searching
+                    retries = max_retries
         # do not let the client play a game if there is no game
         if server_port != 0:
             # no distributor up and running
@@ -89,8 +96,12 @@ class Client:
     def get_server(self, distr_port=11000):
         """talk to the distributor to get a server port to connect to"""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            # send a message to the distributor
-            s.connect(('localhost', distr_port))
+            try:
+                # send a message to the distributor
+                s.connect(('localhost', distr_port))
+            except ConnectionRefusedError:
+                # no distributor up and running
+                return 0
             lat_str = "{:.4f}".format(self.lat)
             lng_str = "{:.4f}".format(self.lng)
             send_data = "CLIENT|" + lat_str + ";" + lng_str
@@ -203,18 +214,19 @@ class Client:
                     print ("Players won!")
                     self.keep_alive = 0
 
-                for player in playerlist:
-                    if player.hp < 0.5*player.max_hp and player != self.myplayer:
-                        message = "heal;{};{};end".format(self.myplayer.ID, player.ID)
-                        break
-
-                # Message unchanged , no healing done
                 if message == "":
                     for dragon in dragonlist:
                         if self.myplayer.get_distance(dragon)<3:
                             message = "attack;{};{};end".format(self.myplayer.ID, dragon.ID)
                             break
+
                 # message unchanged, no dragon in place
+                for player in playerlist:
+                    if player.hp < 0.5*player.max_hp and player != self.myplayer:
+                        message = "heal;{};{};end".format(self.myplayer.ID, player.ID)
+                        break
+                        
+                # Message unchanged , no healing done
                 if message == "":
                     # Find the closest dragon
                     min_dragon_distance = 60
@@ -239,28 +251,30 @@ class Client:
             message_send = self.send_message(message)
             if not message_send:
                 print("Server went down, look for new one")
-                # self.disconnect_server()
-                server_port = self.get_server(self.distr_port)
-                self.sock = self.connect_server(port=server_port)
-                self.queue = Queue()
-                self.start_receiving()
 
-                found = False
-                while not found:
+                retries = 0
+                max_retries = 5
+                while retries < max_retries:
                     server_port = self.get_server(self.distr_port)
                     if server_port == 0:
-                        # set found to true to stop searching, because there is no distributor
-                        found = True
+                        # set max_retries to stop searching, because there is no distributor
+                        retries = max_retries
                     else:
                         # try and connect to the given server
                         self.sock, found = self.connect_server(port=server_port)
-                        self.queue = Queue()
-                        self.start_receiving()
+                        # if given server was not valid, try for another
+                        if not found:
+                            retries += 1
+                        else:
+                            # server was good, start communicating
+                            self.queue = Queue()
+                            self.start_receiving()
+                            # found one, stop searching
+                            retries = max_retries
                 # do not let the client play a game if there is no game
                 if server_port == 0:
                     # no distributor up and running
                     self.keep_alive = False
-
 
         self.disconnect_server()
 

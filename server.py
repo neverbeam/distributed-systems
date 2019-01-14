@@ -308,6 +308,7 @@ class Server:
         self.time_out = self.check_alive
         # Game ticks at whole seconds
 
+        game_ended = False
         while (self.life_time == None) or (self.life_time > (time.time() - self.start_time)*self.speedup):
             try:
                 # Wait for a connection, based on actual seconds
@@ -324,18 +325,23 @@ class Server:
                             client_total += 1
                         elif isinstance(object, Dragon):
                             dragon_total += 1
-                    # if either is 0, send message to peers and set life time to 0
-                    if client_total == 0:
-                        print("DRAGONS WIN THE GAME")
-                        log.write("WIN DRAGONS" + '\n')
-                        self.life_time = 0
-                        self.broadcast_servers(b'WIN DRAGONS')
-                    elif dragon_total == 0:
-                        print("PLAYERS WIN THE GAME")
-                        log.write("WIN PLAYERS" + '\n')
-                        self.life_time = 0
-                        self.broadcast_servers(b'WIN PLAYERS')
-                    print(self.game.ID, client_total, dragon_total)
+                    # make sure you havent ended the game already
+                    if not game_ended:
+                        # if either is 0, send message to peers and set life time to 10
+                        # 10 means sending the message 10 more times, then shut down
+                        if client_total == 0:
+                            print("DRAGONS WIN THE GAME")
+                            log.write("WIN DRAGONS" + '\n')
+                            self.life_time = 10
+                            self.broadcast_servers(b'WIN DRAGONS')
+                            game_ended = True
+                        elif dragon_total == 0:
+                            print("PLAYERS WIN THE GAME")
+                            log.write("WIN PLAYERS" + '\n')
+                            self.life_time = 10
+                            self.broadcast_servers(b'WIN PLAYERS')
+                            game_ended = True
+                    print("Clients:", client_total, "Dragons:", dragon_total)
 
                 # update the peer connections for the main process
                 while not self.peer_queue.empty():
@@ -343,14 +349,18 @@ class Server:
                     if data[0] == 'getgrid':
                         self.send_grid_server(data[1])
                         self.peer_queue.task_done()
-                    elif (data == b'WIN PLAYERS'):
-                        print("PLAYERS WIN THE GAME (told by other server)")
-                        log.write("WIN PLAYERS" + '\n')
-                        self.life_time = 0
-                    elif (data == b'WIN DRAGONS'):
-                        print("DRAGONS WIN THE GAME (told by other server)")
-                        log.write("WIN DRAGONS" + '\n')
-                        self.life_time = 0
+                    # make sure you havent ended the game already
+                    elif not game_ended:
+                        if (data == b'WIN PLAYERS'):
+                            print("PLAYERS WIN THE GAME (told by other server)")
+                            log.write("WIN PLAYERS" + '\n')
+                            self.life_time = 10
+                            game_ended = True
+                        elif (data == b'WIN DRAGONS'):
+                            print("DRAGONS WIN THE GAME (told by other server)")
+                            log.write("WIN DRAGONS" + '\n')
+                            self.life_time = 10
+                            game_ended = True
                     else:
                         peer_connection = data[0]
                         if peer_connection not in self.peer_connections:
@@ -407,6 +417,8 @@ class Server:
                             if self.game.update_grid(command):
                                 senddata.append(command)
                                 log.write(command + '\n')
+                            else:
+                                log.write("invalid update" + '\n')
 
                         # Send to clients
                         data = 'end'.join(senddata) + "endupdate"
@@ -430,12 +442,15 @@ class Server:
                                 self.game_started = True
                         # Else we have some data
                         else:
-                            data = client.recv(64)
-                            #print("SERVER RECEIVED", data)
-                            if data:
-                                self.tickdata += ((str(time.time())+';').encode('utf-8') + data)
-                            else: #connection has closed
-                                self.remove_client(client)
+                            try:
+                                data = client.recv(64)
+                                #print("SERVER RECEIVED", data)
+                                if data:
+                                    self.tickdata += ((str(time.time())+';').encode('utf-8') + data)
+                                else: #connection has closed
+                                    self.remove_client(client)
+                            except ConnectionResetError:
+                                pass
 
 
             # Handling stopping servers and closing connections.
@@ -481,7 +496,7 @@ class Server:
                                 if data == b'getgrid':
                                     self.peer_queue.put(('getgrid', peer))
                                     continue
-                                if (data == b'WIN PLAYERS') or (data == b'WIN DRAGONS'):
+                                if (data.decode('utf-8').startswith('WIN PLAYERS')) or (data.decode('utf-8').startswith('WIN DRAGONS')):
                                     self.life_time = 0
                                 if data:
                                     # Putting data in queue so it can be read by server

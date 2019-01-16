@@ -214,19 +214,19 @@ class Client:
                     print ("Players won!")
                     self.keep_alive = 0
 
+                for player in playerlist:
+                    if player.hp < 0.5*player.max_hp and player != self.myplayer:
+                        message = "heal;{};{};end".format(self.myplayer.ID, player.ID)
+                        break
+
+                # Message unchanged , no healing done
                 if message == "":
                     for dragon in dragonlist:
                         if self.myplayer.get_distance(dragon)<3:
                             message = "attack;{};{};end".format(self.myplayer.ID, dragon.ID)
                             break
-
-                # message unchanged, no dragon in place
-                for player in playerlist:
-                    if player.hp < 0.5*player.max_hp and player != self.myplayer:
-                        message = "heal;{};{};end".format(self.myplayer.ID, player.ID)
-                        break
                         
-                # Message unchanged , no healing done
+                # message unchanged, no dragon in place
                 if message == "":
                     # Find the closest dragon
                     min_dragon_distance = 60

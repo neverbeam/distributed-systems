@@ -32,7 +32,7 @@ class Populator:
             elif experiment_num == 3:
                 self.test_setup_geo(experiment_arg, 100)
             elif experiment_num == 4:
-                self.test_setup_max()
+                self.test_setup_invalids()
 
     # creates a running client
     def client_process(self, distr_port, play_time, lat, lng, demo=False):
@@ -118,7 +118,7 @@ class Populator:
 
 
     # runs a test version pushing the bounds of player/server/player total
-    def test_setup_max(self, num_servers=2, num_clients=50, speedup=1.0):
+    def test_setup_max(self, num_servers=2, num_clients=80, speedup=2.0):
         self.speedup = speedup
         self.printing = True
         # initialize the distributor
@@ -207,86 +207,176 @@ class Populator:
         # setup for running game trace
         trace_start = time.time()
         sim_time = 900
-        join_steps = [0.5, 0.7, 1]
+        join_step = 0.5
         num_servers = 5
         dragons_per_server = 1
-        self.printing = False
+        self.printing = True
+        self.speedup = 1
 
-        for join_step in join_steps:
-            with open("join_step_results.txt", "a") as join_step_results:
-                join_step_results.write("--------------\njoin step: "+str(join_step))
-            self.speedup = join_step/2
-            for n in range(1):
-                try: 
-                    # create a distributor that terminates after all servers are done
-                    dp = 11000
-                    d = mp.Process(target=self.distributor_process, args=(dp, sim_time*self.speedup))
-                    d.start()
-                    time.sleep(0.5)
+        # use for running multiple sims
+        # self.printing = False
+        # join_steps = [0.5, 0.7, 1]
+        # for join_step in join_steps:
+        #     with open("join_step_results.txt", "a") as join_step_results:
+        #         join_step_results.write("--------------\njoin step: "+str(join_step))
+        #     self.speedup = join_step/2
+        #     for n in range(4):
 
-                    servers = []
-                    logfiles = []
-                    for i in range(num_servers):
-                        # run a server
-                        server_id = i*1000
-                        s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, (sim_time-5)*self.speedup, 1, server_id, 1, 1, dragons_per_server))
-                        s.start()
-                        servers.append(s)
-                        logfiles.append("logfile"+str(server_id))
-                        time.sleep(0.2)
+        try: 
+            # create a distributor that terminates after all servers are done
+            dp = 11000
+            d = mp.Process(target=self.distributor_process, args=(dp, sim_time*self.speedup))
+            d.start()
+            time.sleep(0.5)
 
-                    # start populating
-                    clients = []
-                    play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
-                    populating = True
-                    # keep adding players until end of simulation
-                    while (trace_start + (sim_time-10)*self.speedup) > time.time():
-                        # get a random lifetime from the wow distribution
-                        playtime = play_dist[random.randint(0, len(play_dist)-1)] / 100.0
-                        # create the client
-                        c = mp.Process(target=self.client_process, args=(dp,playtime*self.speedup,1,1))
-                        c.start()
-                        clients.append(c)
-                        # wait the set amount of time between adding players
-                        time.sleep(join_step)
+            servers = []
+            logfiles = []
+            for i in range(num_servers):
+                # run a server
+                server_id = i*1000
+                s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, (sim_time-5)*self.speedup, 1, server_id, 1, 1, dragons_per_server))
+                s.start()
+                servers.append(s)
+                logfiles.append("logfile"+str(server_id))
+                time.sleep(0.2)
 
-                    # close all still opened server connections
-                    for s in servers:
-                        s.join()
-                    # close all still opened client connections
-                    for c in clients:
-                        c.join()
-                    d.join()
-                except OSError:
-                    print("Broke off because of to much clients. ")
+            # start populating
+            clients = []
+            play_dist = pickle.load( open( "wow_trace.p", "rb" ) )
+            populating = True
+            # keep adding players until end of simulation
+            while (trace_start + (sim_time-10)*self.speedup) > time.time():
+                # get a random lifetime from the wow distribution
+                playtime = play_dist[random.randint(0, len(play_dist)-1)] / 100.0
+                # create the client
+                c = mp.Process(target=self.client_process, args=(dp,playtime*self.speedup,1,1))
+                c.start()
+                clients.append(c)
+                # wait the set amount of time between adding players
+                time.sleep(join_step)
 
-                time.sleep(10)
-                # analyze who won
+            # close all still opened server connections
+            for s in servers:
+                s.join()
+            # close all still opened client connections
+            for c in clients:
+                c.join()
+            d.join()
+        except OSError:
+            print("Broke off because of to much clients. ")
+
+        time.sleep(10)
+        # analyze who won
+        all_last_messages = ""
+        dragon_win = 0
+        player_win = 0
+        invalids = 0
+        for logfile in logfiles:
+            with open(logfile, 'r') as f:
+                lines = f.read().splitlines()
+                for line in lines:
+                    if line == "WIN DRAGONS":
+                        dragon_win += 1
+                        break
+                    elif line == "WIN PLAYERS":
+                        player_win += 1
+                        break
+                    elif line == "invalid update":
+                        invalids += 1
+        # show who won
+        with open("join_step_results.txt", "a") as join_step_results:
+            if dragon_win == player_win:
+                join_step_results.write("Draw")
+            elif dragon_win > player_win:
+                join_step_results.write("Dragon win")
+            else:
+                join_step_results.write("Player win")
+            join_step_results.write(str(invalids))
+
+
+    # count and show the fraction of wrong moves for different latencies
+    def test_setup_invalids(self):
+        # try out latencies
+        latencies = [0.0]
+        n = 7
+
+        with open("valid_counts.txt", "a") as file_with_counts:
+            file_with_counts.write("\nNew run\n")
+
+        for latency in latencies:
+            print("Testing latency: ", latency)
+            for ni in range(n):
+                # setup for consistant latency
+                sim_time = 60
+                sx = 1
+                sy = 0
+                cx = 1 - latency
+                cy = 0
+                dragons_per_server = 1
+                num_servers = 4
+                num_clients = 20
+                self.printing = False
+                self.speedup = 0.5
+
+                logfiles = []
+                didnt_crash = False
+                while not didnt_crash:
+                    try: 
+                        # create a distributor that terminates after all servers are done
+                        dp = 11000
+                        d = mp.Process(target=self.distributor_process, args=(dp, sim_time*self.speedup))
+                        d.start()
+                        time.sleep(0.5)
+
+                        # add servers
+                        servers = []
+                        for i in range(num_servers):
+                            # run a server
+                            server_id = i*1000
+                            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, (sim_time-5)*self.speedup, 1, server_id, sx, sy, dragons_per_server))
+                            s.start()
+                            servers.append(s)
+                            logfiles.append("logfile"+str(server_id))
+                            time.sleep(0.2)
+
+                        # add clients
+                        clients = []
+                        for i in range(num_clients):
+                            # create the client
+                            c = mp.Process(target=self.client_process, args=(dp,(sim_time-10)*self.speedup,cx,cy))
+                            c.start()
+                            clients.append(c)
+                            time.sleep(3/float(num_clients))
+
+                        # close all still opened server connections
+                        for s in servers:
+                            s.join()
+                        # close all still opened client connections
+                        for c in clients:
+                            c.join()
+                        d.join()
+                        didnt_crash = True
+                    except OSError:
+                        print("Broke off because of to much clients. ")
+                        time.sleep(60)
+                        logfiles = []
+
+                time.sleep(5)
+                # count em all up
                 all_last_messages = ""
-                dragon_win = 0
-                player_win = 0
+                valids = 0
                 invalids = 0
                 for logfile in logfiles:
                     with open(logfile, 'r') as f:
                         lines = f.read().splitlines()
                         for line in lines:
-                            if line == "WIN DRAGONS":
-                                dragon_win += 1
-                                break
-                            elif line == "WIN PLAYERS":
-                                player_win += 1
-                                break
-                            elif line == "invalid update":
+                            if line == "invalid update":
                                 invalids += 1
-                # show who won
-                with open("join_rate_results.txt", "a") as join_step_results:
-                    if dragon_win == player_win:
-                        join_step_results.write("Draw")
-                    elif dragon_win > player_win:
-                        join_step_results.write("Dragon win")
-                    else:
-                        join_step_results.write("Player win")
-                    join_step_results.write(invalids)
+                            else:
+                                valids += 1
+                # report them
+                with open("valid_counts.txt", "a") as file_with_counts:
+                    file_with_counts.write(str(latency)+";"+str(invalids)+";"+str(valids)+"\n")
 
 
 

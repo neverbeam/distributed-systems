@@ -212,8 +212,11 @@ class Server:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # send a message to the distributor
             send_mess = ('OUT_SERVER|' + str(self.port)).encode('UTF-8')
-            s.connect(('localhost', self.distr_port))
-            s.sendall(send_mess)
+            try:
+                s.connect(('localhost', self.distr_port))
+                s.sendall(send_mess)
+            except ConnectionRefusedError:
+                pass
 
     def peer_power_down(self):
         """close peer connections. """
@@ -373,8 +376,11 @@ class Server:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         # send a message to the distributor
                         send_mess = ('SERVER|' + str(self.port) + '|' + str(len(self.connections)-1)).encode('UTF-8')
-                        s.connect(('localhost', self.distr_port))
-                        s.sendall(send_mess)
+                        try:
+                            s.connect(('localhost', self.distr_port))
+                            s.sendall(send_mess)
+                        except ConnectionRefusedError:
+                            pass
                     print("No message received")
 
 

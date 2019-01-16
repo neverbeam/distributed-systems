@@ -119,8 +119,92 @@ def geo_analysis():
     plt.ylabel('Mean client latency')
     plt.show()
 
+
+
+# got the data printed by the populator at the end of simulations
+def valid_analysis():
+    data = [[0.0,205,1092],
+        [0.0,204,1092],
+        [0.0,283,1189],
+        [0.0,204,1176],
+        [0.0,254,866],
+        [0.0,201,978],
+        [0.0,256,1242],
+        [0.0,235,924],
+        [0.0,260,826],
+        [0.0,223,876],
+        [0.1,911,802],
+        [0.1,982,885],
+        [0.1,829,733],
+        [0.1,773,983],
+        [0.1,767,888],
+        [0.1,942,947],
+        [0.1,713,618],
+        [0.2,996,731],
+        [0.2,861,803],
+        [0.2,568,1011],
+        [0.2,866,813],
+        [0.2,792,956],
+        [0.2,975,721],
+        [0.2,615,935],
+        [0.2,970,776],
+        [0.2,880,706],
+        [0.4,777,759],
+        [0.4,679,875],
+        [0.4,652,917],
+        [0.4,878,669],
+        [0.4,581,946],
+        [0.6,687,699],
+        [0.6,531,871],
+        [0.6,591,732],
+        [0.6,604,780],
+        [0.6,370,1012],
+        [0.6,767,580],
+        [0.6,616,757],
+        [0.6,488,873],
+        [0.6,609,712],
+        [0.8,507,423],
+        [0.8,588,668],
+        [0.8,438,807],
+        [0.8,527,674],
+        [0.8,528,717],
+        [0.8,524,689],
+        [0.8,511,679],
+        [1,494,688],
+        [1,400,765],
+        [1,500,640],
+        [1,512,653],
+        [1,518,666]]
+
+    latencies = [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1]
+    perc_valid = []
+    num_moves = []
+    for latency in latencies:
+        latency_results = []
+        moves_results = []
+        for run in data:
+            if run[0] == latency:
+                percentage = (run[2]/float(run[1]+run[2])) * 100
+                latency_results.append(percentage)
+                moves = run[1]+run[2]
+                moves_results.append(moves)
+        perc_valid.append(np.mean(latency_results))
+        num_moves.append(np.mean(moves_results))
+
+    plt.plot(latencies, perc_valid)
+    plt.xlabel("Latency")
+    plt.ylabel("User-friendliness")
+    plt.show()
+
+    plt.plot(latencies, num_moves)
+    plt.xlabel("Latency")
+    plt.ylabel("Number of moves")
+    plt.show()
+
+
 if __name__ == '__main__':
     # mc_trace()
-    play_dist = wow_trace()
-    pickle.dump( play_dist, open( "wow_trace.p", "wb" ) )
-    geo_analysis()
+    # play_dist = wow_trace()
+    # pickle.dump( play_dist, open( "wow_trace.p", "wb" ) )
+    # geo_analysis()
+    valid_analysis()

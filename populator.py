@@ -206,8 +206,8 @@ class Populator:
     def wow_setup(self):
         # setup for running game trace
         trace_start = time.time()
-        sim_time = 900
-        join_step = 0.5
+        sim_time = 60
+        join_step = 2
         num_servers = 5
         dragons_per_server = 1
         self.printing = True
@@ -263,7 +263,7 @@ class Populator:
                 c.join()
             d.join()
         except OSError:
-            print("Broke off because of to much clients. ")
+            print("Broke off because off to much clients. ")
 
         time.sleep(10)
         # analyze who won

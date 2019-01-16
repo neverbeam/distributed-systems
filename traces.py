@@ -82,11 +82,11 @@ def wow_trace():
     print(np.std(play_times))
     plt.plot(play_times)
     plt.xlabel('Player')
-    plt.ylabel('Time')
+    plt.ylabel('Playtime (s)')
     plt.show()
 
     plt.hist(play_times, 50, [min(play_times),max(play_times)])
-    plt.xlabel("Play time")
+    plt.xlabel("Playtime (s)")
     plt.ylabel('Number of occurences')
     plt.show()
 
@@ -116,7 +116,7 @@ def geo_analysis():
 
     plt.bar([1,4,9,16], [mean1, mean4, mean9, mean16], yerr=[std1, std4, std9, std16])
     plt.xlabel("Number of game servers")
-    plt.ylabel('Mean client latency')
+    plt.ylabel('Client latency (s)')
     plt.show()
 
 
@@ -176,6 +176,7 @@ def valid_analysis():
         [1,512,653],
         [1,518,666]]
 
+    # calculate the number of moves and the percentage of valid moves
     latencies = [0.0, 0.1, 0.2, 0.4, 0.6, 0.8, 1]
     perc_valid = []
     num_moves = []
@@ -192,19 +193,22 @@ def valid_analysis():
         num_moves.append(np.mean(moves_results))
 
     plt.plot(latencies, perc_valid)
-    plt.xlabel("Latency")
-    plt.ylabel("User-friendliness")
+    plt.ylim(0, 100)
+    plt.xlabel("Latency (s)")
+    plt.ylabel("User-friendliness (valid move %)")
     plt.show()
 
     plt.plot(latencies, num_moves)
-    plt.xlabel("Latency")
+    bottom, top = plt.ylim()
+    plt.ylim(0, top+(top/20))
+    plt.xlabel("Latency (s)")
     plt.ylabel("Number of moves")
     plt.show()
 
 
 if __name__ == '__main__':
     # mc_trace()
-    # play_dist = wow_trace()
-    # pickle.dump( play_dist, open( "wow_trace.p", "wb" ) )
-    # geo_analysis()
+    play_dist = wow_trace()
+    pickle.dump( play_dist, open( "wow_trace.p", "wb" ) )
+    geo_analysis()
     valid_analysis()

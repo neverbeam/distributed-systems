@@ -32,7 +32,7 @@ class Populator:
             elif experiment_num == 3:
                 self.test_setup_geo(experiment_arg, 100)
             elif experiment_num == 4:
-                self.test_setup_invalids()
+                self.test_setup_max()
 
     # creates a running client
     def client_process(self, distr_port, play_time, lat, lng, demo=False):
@@ -118,7 +118,7 @@ class Populator:
 
 
     # runs a test version pushing the bounds of player/server/player total
-    def test_setup_max(self, num_servers=2, num_clients=80, speedup=2.0):
+    def test_setup_max(self, num_servers=5, num_clients=100, speedup=1.0):
         self.speedup = speedup
         self.printing = True
         # initialize the distributor
@@ -131,7 +131,7 @@ class Populator:
         for i in range(num_servers):
             # run a server
             server_id = i*1000
-            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 40*self.speedup, 1, server_id, 1, 1, 1))
+            s = mp.Process(target=self.server_process, args=(10000+i, 10100+i, dp, 40*self.speedup, 1, server_id, 1, 1, 4))
             s.start()
             servers.append(s)
             time.sleep(0.2)
